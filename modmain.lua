@@ -9,6 +9,13 @@
 --  Dois patches independentes, controlados por config:
 --    1) warly_kitchen_patch.lua  -> remove cozinha auto + prioriza freezer
 --    2) admin_revive_patch.lua   -> bloqueia ressurreição do painel admin
+--
+--  NOTA SOBRE SANDBOX: no modmain do DST, funções como pcall/rawget/rawset
+--  NÃO são globais diretos do env do mod — precisam ser acessadas via GLOBAL
+--  (ou _G). Os scripts de patch usam GLOBAL.pcall / GLOBAL.rawget etc.
+--  modimport roda no mesmo env do modmain, então os patches também enxergam
+--  GLOBAL. Aqui no modmain usamos modimport direto (idiomático do DST), sem
+--  wrapper pcall — se um patch falhar, aparece como MOD ERROR normal no log.
 -- ============================================================================
 
 local _cfg = {
@@ -31,24 +38,14 @@ print(string.format("[WarlyAdminPatch] config: remove_kitchen=%s freezer_priorit
 --  Patch 1: NPC Friends (Warly) — cozinha + armazenamento em freezer
 -- ──────────────────────────────────────────────────────────────────────────
 if _cfg.remove_warly_kitchen or _cfg.freezer_priority_storage then
-    local ok_warly, err_warly = pcall(function()
-        modimport("scripts/patch/warly_kitchen_patch.lua")
-    end)
-    if not ok_warly then
-        print("[WarlyAdminPatch][ERRO] falha ao aplicar patch do Warly: " .. tostring(err_warly))
-    end
+    modimport("scripts/patch/warly_kitchen_patch.lua")
 end
 
 -- ──────────────────────────────────────────────────────────────────────────
 --  Patch 2: Admin Panel — bloquear ressurreição
 -- ──────────────────────────────────────────────────────────────────────────
 if _cfg.block_admin_revive then
-    local ok_admin, err_admin = pcall(function()
-        modimport("scripts/patch/admin_revive_patch.lua")
-    end)
-    if not ok_admin then
-        print("[WarlyAdminPatch][ERRO] falha ao aplicar patch do admin: " .. tostring(err_admin))
-    end
+    modimport("scripts/patch/admin_revive_patch.lua")
 end
 
 print("[WarlyAdminPatch] patches registrados.")

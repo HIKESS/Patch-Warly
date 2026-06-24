@@ -37,7 +37,7 @@
 --- (Réplica do cheque do handler original, em GLOBAL para independência do env.)
 local function _IsAdmin(player)
     if not player or not player.userid then return false end
-    local ok, res = pcall(function()
+    local ok, res = GLOBAL.pcall(function()
         for _, c in ipairs(GLOBAL.TheNet:GetClientTable() or {}) do
             if c.userid == player.userid and c.admin then
                 return true

@@ -48,7 +48,7 @@ local CFG = PATCH_CONFIG
 
 -- Helper seguro de require (entre mods, via package.loaded compartilhado).
 local function safe_require(modname)
-    local ok, mod = pcall(require, modname)
+    local ok, mod = GLOBAL.pcall(require, modname)
     if ok then return mod end
     return nil
 end
@@ -61,8 +61,8 @@ local _APPLIED_FLAG = "_warly_admin_patch_applied"
 -- ═══════════════════════════════════════════════════════════════════════════
 
 local function ApplyWarlyPatches(inst)
-    if rawget(GLOBAL, _APPLIED_FLAG) then return end
-    rawset(GLOBAL, _APPLIED_FLAG, true)
+    if GLOBAL.rawget(GLOBAL, _APPLIED_FLAG) then return end
+    GLOBAL.rawset(GLOBAL, _APPLIED_FLAG, true)
 
     -- ───────────────────────────────────────────────────────────────────────
     -- A) REMOVER A COZINHA AUTOMÁTICA DO WARLY
@@ -128,7 +128,7 @@ local function ApplyWarlyPatches(inst)
 
                 -- 1) Freezers (prioridade)
                 local freezers = {}
-                pcall(function()
+                GLOBAL.pcall(function()
                     freezers = TheSim:FindEntities(x, y, z, RADIUS, {"freezer"}) or {}
                 end)
                 for _, ent in ipairs(freezers) do
@@ -142,7 +142,7 @@ local function ApplyWarlyPatches(inst)
                 -- 2) Geladeiras (fridge) que ainda não foram incluídas
                 local fridge_extra = {}
                 local fridges = {}
-                pcall(function()
+                GLOBAL.pcall(function()
                     fridges = TheSim:FindEntities(x, y, z, RADIUS, {"fridge"}) or {}
                 end)
                 for _, ent in ipairs(fridges) do
@@ -211,7 +211,7 @@ end
 -- ═══════════════════════════════════════════════════════════════════════════
 
 if CFG.remove_warly_kitchen or CFG.freezer_priority_storage then
-    pcall(function()
+    GLOBAL.pcall(function()
         AddPrefabPostInit("npcfriend", function(inst)
             if not inst then return end
 
