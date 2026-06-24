@@ -201,6 +201,88 @@ local function ApplyWarlyPatches(inst)
             print("[WarlyAdminPatch][Warly] AVISO: InvUtil.SmartStore não encontrado nesta versão do mod — freezer priority não aplicado.")
         end
     end
+
+    -- ───────────────────────────────────────────────────────────────────────
+    -- C) USAR TODAS AS COOKPOTS PRÓXIMAS (não só a do _cooking_center)
+    -- ───────────────────────────────────────────────────────────────────────
+    if CFG.use_all_nearby_cookpots then
+        -- No mod original, o brain do Warly passa para o NPCCookingBehavior
+        -- um `get_cookpots_fn` que coleta cookpots (stewer) num raio de 17
+        -- em torno de `inst._cooking_center` (posição fixa definida pelo
+        -- comando "Cook Here"). Ou seja, o Warly só enxerga cookpots perto
+        -- daquele centro fixo — ignorando cookpots/portable cookpots que
+        -- estejam ao redor dele no momento. Resultado: "só usa uma fixa".
+        --
+        -- Correção: sobrescrevemos `NPCCookingBehavior:_GetCookpots` para
+        -- coletar TODAS as cookpots (tag "stewer") num raio ao redor da
+        -- posição ATUAL do NPC, MESCLADAS com a lista original (vinda do
+        -- _cooking_center), dedup. Assim o Warly cozinha em qualquer
+        -- cookpot/portable cookpot próximo dele, onde quer que esteja.
+        local NPCCookingBehavior = safe_require("behaviours/npc_cooking_behavior")
+        if NPCCookingBehavior and NPCCookingBehavior._GetCookpots then
+            local _orig_GetCookpots = NPCCookingBehavior._GetCookpots
+            local COOKPOT_RADIUS = 17 -- = NPC_TUNING.FARM_WORK_RADIUS do mod alvo
+
+            local function _dist_sq(a, b)
+                local x1, y1, z1 = a.Transform:GetWorldPosition()
+                local x2, y2, z2 = b.Transform:GetWorldPosition()
+                local dx, dz = x1 - x2, z1 - z2
+                return dx * dx + dz * dz
+            end
+
+            local function _is_valid_cookpot(ent)
+                if not ent or not ent:IsValid() then return false end
+                if not (ent.components and ent.components.stewer) then return false end
+                return true
+            end
+
+            NPCCookingBehavior._GetCookpots = function(self)
+                local inst = self and self.inst
+                if not (inst and inst.IsValid and inst:IsValid() and inst.Transform) then
+                    return _orig_GetCookpots(self)
+                end
+
+                local seen = {}
+                local merged = {}
+
+                -- 1) Cookpots ao redor da posição ATUAL do NPC (prioridade).
+                --    Tag "stewer" cobre cookpot, portablecookpot, archive_cookpot
+                --    e quaisquer cookpots de mods que usem o componente stewer.
+                local x, y, z = inst.Transform:GetWorldPosition()
+                local nearby = {}
+                GLOBAL.pcall(function()
+                    nearby = TheSim:FindEntities(x, y, z, COOKPOT_RADIUS, {"stewer"}) or {}
+                end)
+                for _, ent in ipairs(nearby) do
+                    if _is_valid_cookpot(ent) and not seen[ent] then
+                        seen[ent] = true
+                        table.insert(merged, ent)
+                    end
+                end
+                -- Ordena do mais próximo ao mais distante do NPC.
+                table.sort(merged, function(a, b) return _dist_sq(inst, a) < _dist_sq(inst, b) end)
+
+                -- 2) Acrescenta a lista original (cookpots do _cooking_center)
+                --    como fallback, caso o NPC esteja longe de toda cookpot
+                --    própria mas ainda tenha o centro de cozinha configurado.
+                local ok_orig, orig_list = GLOBAL.pcall(_orig_GetCookpots, self)
+                if ok_orig and type(orig_list) == "table" then
+                    for _, ent in ipairs(orig_list) do
+                        if _is_valid_cookpot(ent) and not seen[ent] then
+                            seen[ent] = true
+                            table.insert(merged, ent)
+                        end
+                    end
+                end
+
+                return merged
+            end
+
+            print(string.format("[WarlyAdminPatch][Warly] _GetCookpots sobrescrito: usa TODAS as cookpots próximas (raio=%d, merge com _cooking_center).", COOKPOT_RADIUS))
+        else
+            print("[WarlyAdminPatch][Warly] AVISO: NPCCookingBehavior._GetCookpots não encontrado nesta versão do mod — use_all_cookpots não aplicado.")
+        end
+    end
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -210,7 +292,7 @@ end
 --  o próprio mod NPC Friends registra em "npcfriend".
 -- ═══════════════════════════════════════════════════════════════════════════
 
-if CFG.remove_warly_kitchen or CFG.freezer_priority_storage then
+if CFG.remove_warly_kitchen or CFG.freezer_priority_storage or CFG.use_all_nearby_cookpots then
     GLOBAL.pcall(function()
         AddPrefabPostInit("npcfriend", function(inst)
             if not inst then return end

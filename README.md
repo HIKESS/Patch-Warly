@@ -4,7 +4,7 @@ Um **único patch** para **dois mods** do repositório [HIKESS/Mods](https://git
 
 | Mod | Workshop ID | O que o patch faz |
 |-----|-------------|-------------------|
-| **NPC Friends** (橘子的NPC小伙伴) | `workshop-3684000581` | Foco no **Warly**: remove a cozinha completa que ele cria no início do jogo (baú/panela/geladeira) e corrige o armazenamento de comida para priorizar o **freezer mais próximo** (tag `freezer`) antes das geladeiras e dos baús. |
+| **NPC Friends** (橘子的NPC小伙伴) | `workshop-3684000581` | Foco no **Warly**: (1) remove a cozinha completa que ele cria no início do jogo (baú/panela/geladeira); (2) corrige o armazenamento de comida para priorizar o **freezer mais próximo** (tag `freezer`) antes das geladeiras e dos baús; (3) faz o Warly cozinhar em **TODAS as cookpots/portable cookpots próximas** dele, em vez de só na cookpot fixa do `_cooking_center`. |
 | **Admin Panel** (橘子的超级管理员) | `workshop-3678857150` | Bloqueia a **ressurreição / auto-ressurreição** (botão "Reviver" + clique-direito em fantasma) para evitar abuso. O resto do painel (ver/pegar/dar itens, *full restore*, status de NPC, etc.) continua funcionando. **A dependência deste mod NÃO é removida.** |
 
 > Os dois mods originais precisam estar instalados e ativos. Este patch carrega
@@ -86,6 +86,27 @@ armazenar, procurar ao redor do NPC:
 Só cai para os baús se **não houver** nem freezer nem geladeira por perto.
 Assim a comida cozida vai para o **freezer mais próximo** do jogador.
 
+#### C) Usar todas as cookpots próximas (não só a do `_cooking_center`)
+
+**Bug corrigido:** no mod original, o brain do Warly passa para o
+`NPCCookingBehavior` um `get_cookpots_fn` que coleta cookpots (tag `stewer`)
+num raio de 17 em torno de `inst._cooking_center` — uma **posição fixa**
+definida quando o jogador usa o comando "Cook Here". Ou seja, o Warly só
+enxerga cookpots perto daquele centro fixo, ignorando cookpots/portable
+cookpots que estejam ao redor dele no momento. Sintoma: "só usa uma fixa".
+
+**Correção:** o patch sobrescreve `NPCCookingBehavior:_GetCookpots`
+(`scripts/behaviours/npc_cooking_behavior.lua`) para:
+
+1. Coletar **todas** as cookpots (tag `stewer`) num raio de 17 em torno da
+   **posição ATUAL do NPC**, ordenadas do mais próximo ao mais distante;
+2. Mesclar com a lista original (cookpots do `_cooking_center`) como fallback,
+   com dedup.
+
+A tag `stewer` cobre `cookpot`, `portablecookpot`, `archive_cookpot` e
+qualquer cookpot de outros mods que use o componente `stewer`. Assim o Warly
+cozinha em qualquer cookpot próxima dele, onde quer que esteja.
+
 ### 2) `admin_revive_patch.lua` — Admin Panel
 
 No mod original, **todos** os caminhos de ressurreição convergem para o RPC
@@ -125,6 +146,7 @@ ressurreição é bloqueada em todos os mundos (superfície + cavernas).
 | `freezer_priority_storage` | `true` | Prioriza freezer/geladeira mais próximos no armazenamento de comida. |
 | `freezer_search_radius` | `60` | Raio de busca por freezers/geladeiras ao redor do NPC. |
 | `block_admin_revive` | `true` | Bloqueia a ressurreição do painel admin. |
+| `use_all_nearby_cookpots` | `true` | Faz o Warly cozinhar em todas as cookpots/portable cookpots próximas dele (não só na cookpot fixa do `_cooking_center`). |
 
 Para desativar temporariamente qualquer um dos patches, mude a opção
 correspondente no menu de mods (não é preciso reiniciar o servidor, mas é

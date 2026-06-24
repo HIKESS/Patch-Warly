@@ -23,21 +23,23 @@ local _cfg = {
     freezer_priority_storage  = GetModConfigData("freezer_priority_storage") ~= false,
     freezer_search_radius     = GetModConfigData("freezer_search_radius") or 60,
     block_admin_revive        = GetModConfigData("block_admin_revive") ~= false,
+    use_all_nearby_cookpots   = GetModConfigData("use_all_nearby_cookpots") ~= false,
 }
 
 -- Exporta para os scripts de patch (modimport roda no mesmo env do mod)
 PATCH_CONFIG = _cfg
 
-print(string.format("[WarlyAdminPatch] config: remove_kitchen=%s freezer_priority=%s radius=%s block_revive=%s",
+print(string.format("[WarlyAdminPatch] config: remove_kitchen=%s freezer_priority=%s radius=%s block_revive=%s use_all_cookpots=%s",
     tostring(_cfg.remove_warly_kitchen),
     tostring(_cfg.freezer_priority_storage),
     tostring(_cfg.freezer_search_radius),
-    tostring(_cfg.block_admin_revive)))
+    tostring(_cfg.block_admin_revive),
+    tostring(_cfg.use_all_nearby_cookpots)))
 
 -- ──────────────────────────────────────────────────────────────────────────
 --  Patch 1: NPC Friends (Warly) — cozinha + armazenamento em freezer
 -- ──────────────────────────────────────────────────────────────────────────
-if _cfg.remove_warly_kitchen or _cfg.freezer_priority_storage then
+if _cfg.remove_warly_kitchen or _cfg.freezer_priority_storage or _cfg.use_all_nearby_cookpots then
     modimport("scripts/patch/warly_kitchen_patch.lua")
 end
 

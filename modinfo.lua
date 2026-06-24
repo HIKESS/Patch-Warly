@@ -102,4 +102,16 @@ configuration_options = {
         },
         default = true,
     },
+    {
+        name = "use_all_nearby_cookpots",
+        label = _is_pt and "Usar todas as cookpots próximas" or "Use all nearby cookpots",
+        hover = _is_pt
+            and "O Warly passa a cozinhar em TODAS as cookpots/portable cookpots ao redor dele, não só na cookpot fixa do _cooking_center."
+            or "Warly cooks in ALL cookpots/portable cookpots around him, not only the fixed cookpot at _cooking_center.",
+        options = {
+            { description = _is_pt and "Ativado" or "Enabled",  data = true  },
+            { description = _is_pt and "Desativado" or "Disabled", data = false },
+        },
+        default = true,
+    },
 }
