@@ -1,0 +1,16 @@
+# arquivos de sistema / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# node (apenas para checagem de sintaxe local, não faz parte do mod)
+node_modules/
+package.json
+package-lock.json
+bun.lockb
+_check_syntax.js
+
+# arquivos temporários de log
+*.log
