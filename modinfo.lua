@@ -17,7 +17,7 @@ local _is_pt = _locale == "pt" or _locale == "ptbr" or _locale == "brazilian"
 
 name = "Warly Kitchen + Admin Revive + Craft Block Patch"
 author = "HIKESS patch"
-version = "1.2.0"
+version = "1.3.0"
 
 api_version = 10
 dst_compatible = true
@@ -61,6 +61,11 @@ on the first two are kept; the third is optional / defensive):
        - jx_lantern   ("Gemstone Rose Night Patrol Light" / 宝石玫瑰夜巡灯)
        - jx_flashlight("Miller's Flashlight"              / 米勒的手电筒)
        - + the 3 from Phase 1.
+   * WHITELIST (allow_*): each light source can be individually UN-blocked even
+     when the block options above are enabled. Use this to keep the lantern(s)
+     you want while still blocking the rest. Set allow_jx_lantern=true to keep
+     the night patrol lantern, allow_jx_flashlight=true to keep the flashlight,
+     allow_jx_lamp=true to keep the bedside lamp, etc.
    * Functional items where light is a side-effect (cookpot, furnace, oven,
      toaster, charcoal_stove, portable cookpots, portabletent, table_8, tv,
      vending_machine) are NOT blocked, to preserve cooking/heating features.
@@ -163,5 +168,84 @@ configuration_options = {
             { description = _is_pt and "Desativado" or "Disabled", data = false },
         },
         default = true,
+    },
+    -- ──────────────────────────────────────────────────────────────────────
+    --  WHITELIST: opções para NÃO bloquear itens específicos.
+    --  Cada opção abaixo, quando Ativada, impede que o item correspondente
+    --  seja bloqueado — mesmo com block_jingxi_crafts e/ou
+    --  block_light_emitting_crafts ativados. Útil para manter as lanternas
+    --  / lampadas / flashlight que voce quer, enquanto bloqueia o resto.
+    -- ──────────────────────────────────────────────────────────────────────
+    {
+        name = "allow_jx_lantern",
+        label = _is_pt and "NÃO bloquear a lanterna (jx_lantern)" or "Do NOT block lantern (jx_lantern)",
+        hover = _is_pt
+            and "WHITELIST: quando Ativado, o item jx_lantern (Gemstone Rose Night Patrol Light / 宝石玫瑰夜巡灯) NÃO será bloqueado, mesmo se 'Bloquear fontes de luz' estiver Ativado. Use para manter a lanterna de patrulha noturna craftável."
+            or "WHITELIST: when Enabled, the item jx_lantern (Gemstone Rose Night Patrol Light / 宝石玫瑰夜巡灯) will NOT be blocked, even if 'Block light sources' is Enabled. Use this to keep the night patrol lantern craftable.",
+        options = {
+            { description = _is_pt and "Ativado" or "Enabled",  data = true  },
+            { description = _is_pt and "Desativado" or "Disabled", data = false },
+        },
+        default = false,
+    },
+    {
+        name = "allow_jx_flashlight",
+        label = _is_pt and "NÃO bloquear a lanterna (jx_flashlight)" or "Do NOT block flashlight (jx_flashlight)",
+        hover = _is_pt
+            and "WHITELIST: quando Ativado, o item jx_flashlight (Miller's Flashlight / 米勒的手电筒) NÃO será bloqueado, mesmo se 'Bloquear fontes de luz' estiver Ativado. Use para manter a lanterna de mão craftável."
+            or "WHITELIST: when Enabled, the item jx_flashlight (Miller's Flashlight / 米勒的手电筒) will NOT be blocked, even if 'Block light sources' is Enabled. Use this to keep the handheld flashlight craftable.",
+        options = {
+            { description = _is_pt and "Ativado" or "Enabled",  data = true  },
+            { description = _is_pt and "Desativado" or "Disabled", data = false },
+        },
+        default = false,
+    },
+    {
+        name = "allow_jx_lamp",
+        label = _is_pt and "NÃO bloquear a lampada (jx_lamp)" or "Do NOT block bedside lamp (jx_lamp)",
+        hover = _is_pt
+            and "WHITELIST: quando Ativado, o item jx_lamp (Vintage Embellished Bedside Lamp / 复古缀饰床头灯) NÃO será bloqueado, mesmo se 'Bloquear fontes de luz' estiver Ativado. Use para manter o abajur de cabeceira craftável."
+            or "WHITELIST: when Enabled, the item jx_lamp (Vintage Embellished Bedside Lamp / 复古缀饰床头灯) will NOT be blocked, even if 'Block light sources' is Enabled. Use this to keep the bedside lamp craftable.",
+        options = {
+            { description = _is_pt and "Ativado" or "Enabled",  data = true  },
+            { description = _is_pt and "Desativado" or "Disabled", data = false },
+        },
+        default = false,
+    },
+    {
+        name = "allow_jx_mushroom_light",
+        label = _is_pt and "NÃO bloquear (jx_mushroom_light)" or "Do NOT block streetlight (jx_mushroom_light)",
+        hover = _is_pt
+            and "WHITELIST: quando Ativado, o item jx_mushroom_light (Gothic Palace Streetlight / 哥特式宫廷道路灯) NÃO será bloqueado, mesmo se 'Bloquear crafts (JingXi)' e/ou 'Bloquear fontes de luz' estiverem Ativados."
+            or "WHITELIST: when Enabled, the item jx_mushroom_light (Gothic Palace Streetlight / 哥特式宫廷道路灯) will NOT be blocked, even if 'Block crafts (JingXi)' and/or 'Block light sources' are Enabled.",
+        options = {
+            { description = _is_pt and "Ativado" or "Enabled",  data = true  },
+            { description = _is_pt and "Desativado" or "Disabled", data = false },
+        },
+        default = false,
+    },
+    {
+        name = "allow_jx_mushroom_light_2",
+        label = _is_pt and "NÃO bloquear (jx_mushroom_light_2)" or "Do NOT block lamp (jx_mushroom_light_2)",
+        hover = _is_pt
+            and "WHITELIST: quando Ativado, o item jx_mushroom_light_2 (RoseRed Solid Wood Lamp / 蔷薇红实木室内灯) NÃO será bloqueado, mesmo se 'Bloquear crafts (JingXi)' e/ou 'Bloquear fontes de luz' estiverem Ativados."
+            or "WHITELIST: when Enabled, the item jx_mushroom_light_2 (RoseRed Solid Wood Lamp / 蔷薇红实木室内灯) will NOT be blocked, even if 'Block crafts (JingXi)' and/or 'Block light sources' are Enabled.",
+        options = {
+            { description = _is_pt and "Ativado" or "Enabled",  data = true  },
+            { description = _is_pt and "Desativado" or "Disabled", data = false },
+        },
+        default = false,
+    },
+    {
+        name = "allow_jx_lamp_2",
+        label = _is_pt and "NÃO bloquear (jx_lamp_2)" or "Do NOT block candlestick (jx_lamp_2)",
+        hover = _is_pt
+            and "WHITELIST: quando Ativado, o item jx_lamp_2 (Engraved Candlestick / 雕花三臂欧式烛台) NÃO será bloqueado, mesmo se 'Bloquear crafts (JingXi)' e/ou 'Bloquear fontes de luz' estiverem Ativados."
+            or "WHITELIST: when Enabled, the item jx_lamp_2 (Engraved Candlestick / 雕花三臂欧式烛台) will NOT be blocked, even if 'Block crafts (JingXi)' and/or 'Block light sources' are Enabled.",
+        options = {
+            { description = _is_pt and "Ativado" or "Enabled",  data = true  },
+            { description = _is_pt and "Desativado" or "Disabled", data = false },
+        },
+        default = false,
     },
 }

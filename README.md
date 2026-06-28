@@ -219,6 +219,8 @@ idempotente.
 
 ## Opções de configuração (`modinfo.lua`)
 
+### Patches principais
+
 | Opção | Padrão | Descrição |
 |-------|--------|-----------|
 | `remove_warly_kitchen` | `true` | Remove a cozinha automática do Warly. |
@@ -228,6 +230,26 @@ idempotente.
 | `use_all_nearby_cookpots` | `true` | Faz o Warly cozinhar em todas as cookpots/portable cookpots próximas dele (não só na cookpot fixa do `_cooking_center`). |
 | `block_jingxi_crafts` | `true` | Bloqueia os 3 crafts nomeados do JingXi Furniture pelos nomes EXATOS de prefab: `jx_mushroom_light`, `jx_mushroom_light_2`, `jx_lamp_2`. No-op se o mod não estiver instalado. |
 | `block_light_emitting_crafts` | `true` | Bloqueia TODAS as fontes de luz puras do JingXi (nomes EXATOS do código-fonte): `jx_lamp`, `jx_lamp_2`, `jx_mushroom_light`, `jx_mushroom_light_2`, `jx_lantern`, `jx_flashlight`. NÃO bloqueia itens funcionais (cookpot/forno/TV) — preserva cozinha/aquecimento. |
+
+### Whitelist — NÃO bloquear itens específicos
+
+Cada opção abaixo, quando **Ativada**, impede que o item correspondente seja
+bloqueado — **mesmo** com `block_jingxi_crafts` e/ou `block_light_emitting_crafts`
+ativados. Use estas opções para manter as lanternas/lâmpadas/flashlight que você
+quer, enquanto bloqueia o resto.
+
+| Opção | Padrão | Prefab | Item |
+|-------|--------|--------|------|
+| `allow_jx_lantern` | `false` | `jx_lantern` | Gemstone Rose Night Patrol Light / 宝石玫瑰夜巡灯 (lanterna de patrulha noturna) |
+| `allow_jx_flashlight` | `false` | `jx_flashlight` | Miller's Flashlight / 米勒的手电筒 (lanterna de mão) |
+| `allow_jx_lamp` | `false` | `jx_lamp` | Vintage Embellished Bedside Lamp / 复古缀饰床头灯 (abajur de cabeceira) |
+| `allow_jx_mushroom_light` | `false` | `jx_mushroom_light` | Gothic Palace Streetlight / 哥特式宫廷道路灯 (lâmpada de rua gótica) |
+| `allow_jx_mushroom_light_2` | `false` | `jx_mushroom_light_2` | RoseRed Solid Wood Lamp / 蔷薇红实木室内灯 (lâmpada de madeira) |
+| `allow_jx_lamp_2` | `false` | `jx_lamp_2` | Engraved Candlestick / 雕花三臂欧式烛台 (candelabro entalhado) |
+
+> **Exemplo:** para **não bloquear as lanternas** (lantern + flashlight) enquanto
+> bloqueia as demais fontes de luz, ative `block_light_emitting_crafts` = `true`,
+> `allow_jx_lantern` = `true` e `allow_jx_flashlight` = `true`.
 
 Para desativar temporariamente qualquer um dos patches, mude a opção
 correspondente no menu de mods (não é preciso reiniciar o servidor, mas é
@@ -245,7 +267,8 @@ Procure por:
 - `[WarlyAdminPatch][Admin] Ressurreição do painel admin BLOQUEADA ...`
 - `[WarlyAdminPatch][CraftBlock] hid '<recipe>' (phase1 named)`
 - `[WarlyAdminPatch][CraftBlock] hid '<recipe>' (phase2 light source)`
-- `[WarlyAdminPatch][CraftBlock] N recipe(s) de fonte de luz oculto(s)/bloqueado(s) ...`
+- `[WarlyAdminPatch][CraftBlock] KEEP '<recipe>' (whitelisted by config allow_*) — not blocked.`
+- `[WarlyAdminPatch][CraftBlock] N recipe(s) de fonte de luz oculto(s)/bloqueado(s), M mantido(s) por whitelist ...`
 - `[WarlyAdminPatch][CraftBlock] AVISO: recipe '<name>' não encontrado em AllRecipes (mod 3597024951 não instalado?).`
 
 Se algo não carregou (ex.: o mod alvo mudou de versão), aparecerá um `AVISO`

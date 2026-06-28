@@ -32,6 +32,23 @@
 --  LIGHT_SOURCE_PREFABS abaixo.
 --
 --  ----------------------------------------------------------------------------
+--  WHITELIST (allow_*): NÃO bloquear itens específicos
+--  ----------------------------------------------------------------------------
+--  Cada prefab de fonte de luz tem uma opção de config allow_jx_<name> no
+--  modinfo.lua. Quando Ativada, o prefab correspondente NÃO é bloqueado —
+--  mesmo com block_jingxi_crafts e/ou block_light_emitting_crafts ativados.
+--  Isso permite manter as lanternas/lampadas/flashlight que o usuario quer,
+--  enquanto bloqueia o resto.
+--
+--  Mapeamento prefab -> chave de config:
+--    jx_lantern           -> allow_jx_lantern          (lanterna de patrulha)
+--    jx_flashlight        -> allow_jx_flashlight       (lanterna de mão)
+--    jx_lamp              -> allow_jx_lamp             (abajur de cabeceira)
+--    jx_mushroom_light    -> allow_jx_mushroom_light   (lampada de rua gótica)
+--    jx_mushroom_light_2  -> allow_jx_mushroom_light_2 (lampada de madeira)
+--    jx_lamp_2            -> allow_jx_lamp_2           (candelabro entalhado)
+--
+--  ----------------------------------------------------------------------------
 --  MECANISMO DE BLOQUEIO (tríplice, para máxima confiabilidade)
 --  ----------------------------------------------------------------------------
 --  Para cada recipe que casa:
@@ -97,8 +114,33 @@ for _, p in ipairs(LIGHT_SOURCE_PREFABS) do
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════
+--  WHITELIST: prefabs que o usuario escolheu NAO bloquear.
+--  Construída a partir de CFG.allow_* no scan. Cada chave aqui tem prioridade
+--  sobre block_jingxi_crafts e block_light_emitting_crafts.
+-- ═══════════════════════════════════════════════════════════════════════════
+local _ALLOW_KEYS = {
+    ["jx_lantern"]           = "allow_jx_lantern",
+    ["jx_flashlight"]        = "allow_jx_flashlight",
+    ["jx_lamp"]              = "allow_jx_lamp",
+    ["jx_mushroom_light"]    = "allow_jx_mushroom_light",
+    ["jx_mushroom_light_2"]  = "allow_jx_mushroom_light_2",
+    ["jx_lamp_2"]            = "allow_jx_lamp_2",
+}
+
+-- ═══════════════════════════════════════════════════════════════════════════
 --  Bloqueio
 -- ═══════════════════════════════════════════════════════════════════════════
+
+--- Verifica se o prefab está na whitelist (usuario escolheu NAO bloquear).
+--- @param pname string nome do prefab
+--- @return boolean true se o prefab NAO deve ser bloqueado
+local function _is_whitelisted(pname)
+    local key = _ALLOW_KEYS[pname]
+    if not key then
+        return false
+    end
+    return CFG[key] == true
+end
 
 --- Bloqueia um recipe: mecanismo triplo. Idempotente.
 local function _block_recipe(recipe, reason)
@@ -162,20 +204,29 @@ local function _scan_and_block()
     local phase2_active = CFG.block_light_emitting_crafts
 
     local blocked = 0
+    local kept = 0  -- itens mantidos por whitelist
 
     -- Itera por nome direto (mais eficiente e confiável que varrer tudo).
     -- Fase 1: os 3 nomeados.
     if CFG.block_jingxi_crafts then
         for _, pname in ipairs(NAMED_PREFABS) do
-            local recipe = AllRecipes[pname]
-            if recipe then
-                if _block_recipe(recipe, "phase1 named") then
-                    blocked = blocked + 1
-                end
-            else
+            -- WHITELIST: pula se o usuario escolheu manter este item.
+            if _is_whitelisted(pname) then
+                kept = kept + 1
                 print(string.format(
-                    "[WarlyAdminPatch][CraftBlock] AVISO: recipe '%s' não encontrado em AllRecipes (mod 3597024951 não instalado?).",
+                    "[WarlyAdminPatch][CraftBlock] KEEP '%s' (whitelisted by config allow_*) — not blocked.",
                     pname))
+            else
+                local recipe = AllRecipes[pname]
+                if recipe then
+                    if _block_recipe(recipe, "phase1 named") then
+                        blocked = blocked + 1
+                    end
+                else
+                    print(string.format(
+                        "[WarlyAdminPatch][CraftBlock] AVISO: recipe '%s' não encontrado em AllRecipes (mod 3597024951 não instalado?).",
+                        pname))
+                end
             end
         end
     end
@@ -185,21 +236,30 @@ local function _scan_and_block()
     if phase2_active then
         for _, pname in ipairs(LIGHT_SOURCE_PREFABS) do
             if not phase1_set[pname] then
-                local recipe = AllRecipes[pname]
-                if recipe then
-                    if _block_recipe(recipe, "phase2 light source") then
-                        blocked = blocked + 1
+                -- WHITELIST: pula se o usuario escolheu manter este item.
+                if _is_whitelisted(pname) then
+                    kept = kept + 1
+                    print(string.format(
+                        "[WarlyAdminPatch][CraftBlock] KEEP '%s' (whitelisted by config allow_*) — not blocked.",
+                        pname))
+                else
+                    local recipe = AllRecipes[pname]
+                    if recipe then
+                        if _block_recipe(recipe, "phase2 light source") then
+                            blocked = blocked + 1
+                        end
                     end
                 end
             end
         end
     end
 
-    if blocked > 0 then
+    if blocked > 0 or kept > 0 then
         print(string.format(
-            "[WarlyAdminPatch][CraftBlock] %d recipe(s) de fonte de luz oculto(s)/bloqueado(s) " ..
+            "[WarlyAdminPatch][CraftBlock] %d recipe(s) de fonte de luz oculto(s)/bloqueado(s), %d mantido(s) por whitelist " ..
             "(phase1_jingxi=%s phase2_light=%s).",
             blocked,
+            kept,
             tostring(CFG.block_jingxi_crafts),
             tostring(phase2_active)))
     else
@@ -225,6 +285,12 @@ end)
 
 print(string.format(
     "[WarlyAdminPatch][CraftBlock] PostInit('world') registrado — scan de fontes de luz no spawn " ..
-    "(phase1_jingxi=%s phase2_light=%s).",
+    "(phase1_jingxi=%s phase2_light=%s | whitelist: lantern=%s flashlight=%s lamp=%s mushroom_light=%s mushroom_light_2=%s lamp_2=%s).",
     tostring(CFG.block_jingxi_crafts),
-    tostring(CFG.block_light_emitting_crafts)))
+    tostring(CFG.block_light_emitting_crafts),
+    tostring(CFG.allow_jx_lantern),
+    tostring(CFG.allow_jx_flashlight),
+    tostring(CFG.allow_jx_lamp),
+    tostring(CFG.allow_jx_mushroom_light),
+    tostring(CFG.allow_jx_mushroom_light_2),
+    tostring(CFG.allow_jx_lamp_2)))

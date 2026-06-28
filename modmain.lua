@@ -31,19 +31,33 @@ local _cfg = {
     use_all_nearby_cookpots   = GetModConfigData("use_all_nearby_cookpots") ~= false,
     block_jingxi_crafts       = GetModConfigData("block_jingxi_crafts") ~= false,
     block_light_emitting_crafts = GetModConfigData("block_light_emitting_crafts") ~= false,
+    -- WHITELIST: quando true, o item NAO é bloqueado (mesmo com os block_* acima).
+    -- Default false = segue o comportamento do block_* (bloqueia se o block estiver on).
+    allow_jx_lantern          = GetModConfigData("allow_jx_lantern") == true,
+    allow_jx_flashlight       = GetModConfigData("allow_jx_flashlight") == true,
+    allow_jx_lamp             = GetModConfigData("allow_jx_lamp") == true,
+    allow_jx_mushroom_light   = GetModConfigData("allow_jx_mushroom_light") == true,
+    allow_jx_mushroom_light_2 = GetModConfigData("allow_jx_mushroom_light_2") == true,
+    allow_jx_lamp_2           = GetModConfigData("allow_jx_lamp_2") == true,
 }
 
 -- Exporta para os scripts de patch (modimport roda no mesmo env do mod)
 PATCH_CONFIG = _cfg
 
-print(string.format("[WarlyAdminPatch] config: remove_kitchen=%s freezer_priority=%s radius=%s block_revive=%s use_all_cookpots=%s block_jingxi=%s block_light=%s",
+print(string.format("[WarlyAdminPatch] config: remove_kitchen=%s freezer_priority=%s radius=%s block_revive=%s use_all_cookpots=%s block_jingxi=%s block_light=%s | whitelist: lantern=%s flashlight=%s lamp=%s mushroom_light=%s mushroom_light_2=%s lamp_2=%s",
     tostring(_cfg.remove_warly_kitchen),
     tostring(_cfg.freezer_priority_storage),
     tostring(_cfg.freezer_search_radius),
     tostring(_cfg.block_admin_revive),
     tostring(_cfg.use_all_nearby_cookpots),
     tostring(_cfg.block_jingxi_crafts),
-    tostring(_cfg.block_light_emitting_crafts)))
+    tostring(_cfg.block_light_emitting_crafts),
+    tostring(_cfg.allow_jx_lantern),
+    tostring(_cfg.allow_jx_flashlight),
+    tostring(_cfg.allow_jx_lamp),
+    tostring(_cfg.allow_jx_mushroom_light),
+    tostring(_cfg.allow_jx_mushroom_light_2),
+    tostring(_cfg.allow_jx_lamp_2)))
 
 -- ──────────────────────────────────────────────────────────────────────────
 --  Patch 1: NPC Friends (Warly) — cozinha + armazenamento em freezer
