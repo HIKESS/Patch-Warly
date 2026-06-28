@@ -17,7 +17,7 @@ local _is_pt = _locale == "pt" or _locale == "ptbr" or _locale == "brazilian"
 
 name = "Warly Kitchen + Admin Revive + Craft Block Patch"
 author = "HIKESS patch"
-version = "1.1.0"
+version = "1.2.0"
 
 api_version = 10
 dst_compatible = true
@@ -49,14 +49,22 @@ on the first two are kept; the third is optional / defensive):
      NOT removed.
 
 3) JingXi Furniture (workshop-3597024951) — optional craft block
-   * Hides/blocks three specific crafts from the JingXi Furniture mod:
-       - "gothic palace Strong light"
-       - "rose red solid woodlamp"
-       - "engraved candlestick"
-   * The patch matches by display-name keywords (English + Chinese, since the
-     mod is Chinese with an English translation) AND by candidate prefab-name
-     patterns, so it works even without knowing the exact prefab names. If the
-     JingXi Furniture mod is not installed, nothing matches and this is a no-op.
+   * Blocks the LIGHT SOURCES of the mod. Prefab names were obtained by direct
+     source analysis of the mod repo (github.com/HIKESS/Mods/3597024951), so
+     matching is exact (not vocabulary-based).
+   * Phase 1 (block_jingxi_crafts): the 3 named items —
+       - jx_mushroom_light   ("Gothic Palace Streetlight"  / 哥特式宫廷道路灯)
+       - jx_mushroom_light_2 ("RoseRed Solid Wood Lamp"    / 蔷薇红实木室内灯)
+       - jx_lamp_2           ("Engraved Candlestick"       / 雕花三臂欧式烛台)
+   * Phase 2 (block_light_emitting_crafts): ALL pure light sources of the mod —
+       - jx_lamp      ("Vintage Embellished Bedside Lamp" / 复古缀饰床头灯)
+       - jx_lantern   ("Gemstone Rose Night Patrol Light" / 宝石玫瑰夜巡灯)
+       - jx_flashlight("Miller's Flashlight"              / 米勒的手电筒)
+       - + the 3 from Phase 1.
+   * Functional items where light is a side-effect (cookpot, furnace, oven,
+     toaster, charcoal_stove, portable cookpots, portabletent, table_8, tv,
+     vending_machine) are NOT blocked, to preserve cooking/heating features.
+   * If the JingXi Furniture mod is not installed, nothing matches (no-op).
      The mod is NOT a hard dependency.
 
 Load order for (1) and (2) is handled by the declared dependencies.
@@ -136,8 +144,8 @@ configuration_options = {
         name = "block_jingxi_crafts",
         label = _is_pt and "Bloquear crafts (JingXi Furniture)" or "Block crafts (JingXi Furniture)",
         hover = _is_pt
-            and "Oculta/bloqueia 3 crafts do mod workshop-3597024951 (JingXi Furniture): gothic palace strong light, rose red solid woodlamp, engraved candlestick. No-op se o mod não estiver instalado."
-            or "Hides/blocks 3 crafts from mod workshop-3597024951 (JingXi Furniture): gothic palace strong light, rose red solid woodlamp, engraved candlestick. No-op if the mod is not installed.",
+            and "Oculta/bloqueia os 3 crafts nomeados do mod workshop-3597024951 (JingXi Furniture) pelos nomes EXATOS de prefab: jx_mushroom_light (Gothic Palace Streetlight), jx_mushroom_light_2 (RoseRed Solid Wood Lamp), jx_lamp_2 (Engraved Candlestick). No-op se o mod não estiver instalado."
+            or "Hides/blocks the 3 named crafts from mod workshop-3597024951 (JingXi Furniture) by EXACT prefab names: jx_mushroom_light (Gothic Palace Streetlight), jx_mushroom_light_2 (RoseRed Solid Wood Lamp), jx_lamp_2 (Engraved Candlestick). No-op if the mod is not installed.",
         options = {
             { description = _is_pt and "Ativado" or "Enabled",  data = true  },
             { description = _is_pt and "Desativado" or "Disabled", data = false },
@@ -146,10 +154,10 @@ configuration_options = {
     },
     {
         name = "block_light_emitting_crafts",
-        label = _is_pt and "Bloquear itens que emitem luz (mods)" or "Block light-emitting crafts (mods)",
+        label = _is_pt and "Bloquear fontes de luz (JingXi)" or "Block light sources (JingXi)",
         hover = _is_pt
-            and "Procura crafts cujo nome indique emissao de luz (lamp/lantern/candle/灯/烛/强光...) em tabs de crafting MODDADAS (nao-vanilla) e os bloqueia. Assim tocha/fogueira/lanterna vanilla continuam craftaveis. Pega os 3 itens do JingXi E outros moveis de luz de mods."
-            or "Scans crafts whose name indicates light emission (lamp/lantern/candle/灯/烛/强光...) in MODDED (non-vanilla) crafting tabs and blocks them. Vanilla torch/campfire/lantern stay craftable. Catches the 3 JingXi items AND other mods' light furniture.",
+            and "Bloqueia TODAS as fontes de luz puras do mod JingXi (nomes EXATOS de prefab do código-fonte): jx_lamp, jx_lamp_2, jx_mushroom_light, jx_mushroom_light_2, jx_lantern, jx_flashlight. NÃO bloqueia itens funcionais onde luz é efeito colateral (cookpot/forno/TV/etc.) — preserva cozinha e aquecimento."
+            or "Blocks ALL pure light sources of the JingXi mod (EXACT prefab names from source): jx_lamp, jx_lamp_2, jx_mushroom_light, jx_mushroom_light_2, jx_lantern, jx_flashlight. Does NOT block functional items where light is a side-effect (cookpot/oven/TV/etc.) — preserves cooking and heating.",
         options = {
             { description = _is_pt and "Ativado" or "Enabled",  data = true  },
             { description = _is_pt and "Desativado" or "Disabled", data = false },
