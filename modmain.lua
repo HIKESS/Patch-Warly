@@ -26,6 +26,14 @@
 --                                       (workshop-1085586145) via hook de
 --                                       require() quando o idioma do AIP é
 --                                       "Portuguese"
+--    6) jx_descriptions_ptbr.lua     -> traduz PT-BR as descrições
+--                                       (RECIPE_DESC + DESCRIBE) de TODOS os
+--                                       ~188 itens do JingXi Furniture
+--                                       (workshop-3597024951). NÃO traduz nomes.
+--    7) aip_descriptions_ptbr.lua    -> traduz PT-BR as descrições dos itens
+--                                       craftáveis do AIP (workshop-1085586145)
+--                                       + comidas/veggies/chesspieces/etc.
+--                                       Gated em AIP language=portuguese.
 --
 --  NOTA SOBRE SANDBOX: no modmain do DST, funções como pcall/rawget/rawset
 --  NÃO são globais diretos do env do mod — precisam ser acessadas via GLOBAL
@@ -45,6 +53,8 @@ local _cfg = {
     block_light_emitting_crafts = GetModConfigData("block_light_emitting_crafts") ~= false,
     fix_gemcore_craftmenu_crash = GetModConfigData("fix_gemcore_craftmenu_crash") ~= false,
     translate_aip_storybook    = GetModConfigData("translate_aip_storybook") ~= false,
+    translate_jx_descriptions  = GetModConfigData("translate_jx_descriptions") ~= false,
+    translate_aip_descriptions = GetModConfigData("translate_aip_descriptions") ~= false,
     -- WHITELIST: quando true, o item NAO é bloqueado (mesmo com os block_* acima).
     -- Default false = segue o comportamento do block_* (bloqueia se o block estiver on).
     allow_jx_lantern          = GetModConfigData("allow_jx_lantern") == true,
@@ -58,7 +68,7 @@ local _cfg = {
 -- Exporta para os scripts de patch (modimport roda no mesmo env do mod)
 PATCH_CONFIG = _cfg
 
-print(string.format("[WarlyAdminPatch] config: remove_kitchen=%s freezer_priority=%s radius=%s block_revive=%s use_all_cookpots=%s block_jingxi=%s block_light=%s fix_gemcore=%s translate_aip_storybook=%s | whitelist: lantern=%s flashlight=%s lamp=%s mushroom_light=%s mushroom_light_2=%s lamp_2=%s",
+print(string.format("[WarlyAdminPatch] config: remove_kitchen=%s freezer_priority=%s radius=%s block_revive=%s use_all_cookpots=%s block_jingxi=%s block_light=%s fix_gemcore=%s translate_aip_storybook=%s translate_jx_desc=%s translate_aip_desc=%s | whitelist: lantern=%s flashlight=%s lamp=%s mushroom_light=%s mushroom_light_2=%s lamp_2=%s",
     tostring(_cfg.remove_warly_kitchen),
     tostring(_cfg.freezer_priority_storage),
     tostring(_cfg.freezer_search_radius),
@@ -68,6 +78,8 @@ print(string.format("[WarlyAdminPatch] config: remove_kitchen=%s freezer_priorit
     tostring(_cfg.block_light_emitting_crafts),
     tostring(_cfg.fix_gemcore_craftmenu_crash),
     tostring(_cfg.translate_aip_storybook),
+    tostring(_cfg.translate_jx_descriptions),
+    tostring(_cfg.translate_aip_descriptions),
     tostring(_cfg.allow_jx_lantern),
     tostring(_cfg.allow_jx_flashlight),
     tostring(_cfg.allow_jx_lamp),
@@ -122,6 +134,37 @@ end
 if _cfg.translate_aip_storybook then
     modimport("scripts/patch/aip_storybook_ptbr_data.lua")
     modimport("scripts/patch/aip_storybook_ptbr.lua")
+end
+
+-- ──────────────────────────────────────────────────────────────────────────
+--  Patch 6: JingXi Furniture (workshop-3597024951) — tradução PT-BR
+--           das descrições (RECIPE_DESC + DESCRIBE) dos itens.
+--  Sobrescreve STRINGS.RECIPE_DESC e STRINGS.CHARACTERS.GENERIC.DESCRIBE
+--  com PT-BR para TODOS os ~188 itens do mod. NÃO traduz NAMES.
+--  Defensive: no-op se o JingXi não estiver instalado.
+--  NOTA: o data file DEVE ser modimportado ANTES do patch script, pois o
+--  patch lê a global JX_DESC_PTBR definida pelo data file.
+-- ──────────────────────────────────────────────────────────────────────────
+if _cfg.translate_jx_descriptions then
+    modimport("scripts/patch/jx_descriptions_ptbr_data.lua")
+    modimport("scripts/patch/jx_descriptions_ptbr.lua")
+end
+
+-- ──────────────────────────────────────────────────────────────────────────
+--  Patch 7: Additional Item Package (workshop-1085586145) — tradução
+--           PT-BR das descrições (RECIPE_DESC + DESCRIBE) dos itens.
+--  Sobrescreve STRINGS.RECIPE_DESC e STRINGS.CHARACTERS.GENERIC.DESCRIBE
+--  com PT-BR para TODOS os itens craftáveis do AIP + comidas/veggies/
+--  chesspieces/inscrições/etc. NÃO traduz NAMES. NÃO traduz aip_pet_*.
+--  Gated em AIP language=portuguese (respeita o config do AIP).
+--  Defensive: no-op se o AIP não estiver instalado ou se o idioma não
+--  for "portuguese".
+--  NOTA: o data file DEVE ser modimportado ANTES do patch script, pois o
+--  patch lê a global AIP_DESC_PTBR definida pelo data file.
+-- ──────────────────────────────────────────────────────────────────────────
+if _cfg.translate_aip_descriptions then
+    modimport("scripts/patch/aip_descriptions_ptbr_data.lua")
+    modimport("scripts/patch/aip_descriptions_ptbr.lua")
 end
 
 print("[WarlyAdminPatch] patches registrados.")

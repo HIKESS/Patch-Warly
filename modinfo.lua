@@ -17,7 +17,7 @@ local _is_pt = _locale == "pt" or _locale == "ptbr" or _locale == "brazilian"
 
 name = "Warly Kitchen + Admin Revive + Craft Block Patch"
 author = "HIKESS patch"
-version = "1.5.1"
+version = "1.6.0"
 
 api_version = 10
 dst_compatible = true
@@ -100,6 +100,39 @@ on the first two are kept; the rest are optional / defensive):
    * Only the storybook book item is translated. Item names, UI labels, and
      other mod strings are untouched.
    * Defensive: no-op if AIP is not installed, or if its language is not
+     "Portuguese".
+
+6) JingXi Furniture item descriptions PT-BR (translate_jx_descriptions)
+   * The mod workshop-3597024951 (JingXi Furniture) has two language files
+     (jx_en.lua / jx_ch.lua) auto-selected by DST locale. PT-BR players get
+     the English file — all furniture items show English descriptions in the
+     crafting menu and when examined.
+   * This patch overrides STRINGS.RECIPE_DESC and STRINGS.CHARACTERS.GENERIC.
+     DESCRIBE with PT-BR translations for ALL ~188 items of the mod (lamps,
+     furniture, decor, rugs, walls, turfs, tools, food, vehicles, etc.).
+   * Item NAMES are NOT translated (per user request — only descriptions).
+   * Also fixes two bugs in the English source file: the CHESSPIECES_JX plural
+     typo (should be singular CHESSPIECE_JX) and the JX_RUG_TRIANGLE overwrite
+     bug (the EN file accidentally clobbered JX_RUG_FOREST instead of setting
+     JX_RUG_TRIANGLE).
+   * Defensive: no-op if JingXi is not installed (orphan STRINGS entries are
+     never read). Default: Enabled.
+
+7) Additional Item Package item descriptions PT-BR (translate_aip_descriptions)
+   * The mod workshop-1085586145 (AIP) uses a per-prefab LANG_MAP pattern. Only
+     ~5 prefabs + 17 foods have a Portuguese section; the rest fall back to
+     English when the user selects "Portuguese" in the AIP config.
+   * This patch overrides STRINGS.RECIPE_DESC and STRINGS.CHARACTERS.GENERIC.
+     DESCRIBE with PT-BR translations for ALL craftable AIP items, plus the
+     dynamic-loop items: 8 chesspieces, 11 inscriptions, 36 foods (base) +
+     108 spice variants (garlic/sugar/chili), 9 veggies, 6 livers, 6 element
+     guards, 4 rubik fire colors, sunflower stages, breadfruit tree stages,
+     and 5 torch stands.
+   * Item NAMES are NOT translated (per user request — only descriptions).
+   * aip_pet_* items are NOT translated (they inherit from vanilla DST, which
+     already has PT-BR).
+   * Gated on AIP language="portuguese" — respects the user's AIP language
+     choice. Defensive: no-op if AIP is not installed or language is not
      "Portuguese".
 
 Load order for (1) and (2) is handled by the declared dependencies.
@@ -229,6 +262,41 @@ configuration_options = {
         hover = _is_pt
             and "Injeta a tradução PT-BR do livro 'API storybook' do mod Additional Item Package (workshop-1085586145). O mod AIP tem uma opção de idioma 'Portuguese' no config, mas a versão de workshop não inclui o arquivo de tradução — selecionar 'Portuguese' faz o livro cair no fallback English. Este patch corrige isso via hook de require(): quando o widget do livro carrega os dados em inglês (fallback) e o idioma do AIP está em 'Portuguese', o hook retorna a tradução PT-BR no lugar. Apenas o conteúdo do livro storybook é traduzido (18 capítulos). Defensive: no-op se o mod AIP não estiver instalado ou se o idioma não for 'Portuguese'."
             or "Injects the PT-BR translation of the 'API storybook' book item from the Additional Item Package mod (workshop-1085586145). The AIP mod has a 'Portuguese' language option in its config, but the workshop version does not include the translation file — selecting 'Portuguese' falls back to English. This patch fixes that via a require() hook: when the storybook widget loads its fallback English data and the AIP language is set to 'Portuguese', the hook returns the PT-BR translation instead. Only the storybook book content is translated (18 chapters). Defensive: no-op if the AIP mod is not installed or if its language is not 'Portuguese'.",
+        options = {
+            { description = _is_pt and "Ativado" or "Enabled",  data = true  },
+            { description = _is_pt and "Desativado" or "Disabled", data = false },
+        },
+        default = true,
+    },
+    -- ──────────────────────────────────────────────────────────────────────
+    --  Patch 6: JingXi Furniture (workshop-3597024951) — tradução PT-BR
+    --           das descrições (RECIPE_DESC + DESCRIBE) dos itens. NÃO
+    --           traduz nomes (NAMES). Defensive: no-op se o mod não existir.
+    -- ──────────────────────────────────────────────────────────────────────
+    {
+        name = "translate_jx_descriptions",
+        label = _is_pt and "Traduzir descrições (JingXi Furniture, PT-BR)" or "Translate descriptions (JingXi Furniture, PT-BR)",
+        hover = _is_pt
+            and "Sobrescreve STRINGS.RECIPE_DESC e STRINGS.CHARACTERS.GENERIC.DESCRIBE com traduções PT-BR para TODOS os ~188 itens do mod JingXi Furniture (workshop-3597024951): abajures, móveis, decoração, tapetes, paredes, turfs, ferramentas, comidas, veículos, etc. NÃO traduz nomes dos itens (STRINGS.NAMES) — apenas descrições. O mod JingXi carrega inglês para locales não-chineses, então jogadores PT-BR veem tudo em inglês por padrão. Este patch corrige isso. Também fixa 2 bugs do arquivo EN: o typo plural CHESSPIECES_JX (deveria ser singular) e o bug de overwrite do JX_RUG_TRIANGLE. Defensive: no-op se o JingXi não estiver instalado. Default: Ativado."
+            or "Overrides STRINGS.RECIPE_DESC and STRINGS.CHARACTERS.GENERIC.DESCRIBE with PT-BR translations for ALL ~188 items of the JingXi Furniture mod (workshop-3597024951): lamps, furniture, decor, rugs, walls, turfs, tools, food, vehicles, etc. Does NOT translate item names (STRINGS.NAMES) — descriptions only. The JingXi mod loads English for non-Chinese locales, so PT-BR players see everything in English by default. This patch fixes that. Also fixes 2 EN-file bugs: the CHESSPIECES_JX plural typo (should be singular) and the JX_RUG_TRIANGLE overwrite bug. Defensive: no-op if JingXi is not installed. Default: Enabled.",
+        options = {
+            { description = _is_pt and "Ativado" or "Enabled",  data = true  },
+            { description = _is_pt and "Desativado" or "Disabled", data = false },
+        },
+        default = true,
+    },
+    -- ──────────────────────────────────────────────────────────────────────
+    --  Patch 7: Additional Item Package (workshop-1085586145) — tradução
+    --           PT-BR das descrições (RECIPE_DESC + DESCRIBE) dos itens.
+    --           Gated em AIP language=portuguese. Defensive: no-op se o
+    --           AIP não estiver instalado ou se o idioma não for portuguese.
+    -- ──────────────────────────────────────────────────────────────────────
+    {
+        name = "translate_aip_descriptions",
+        label = _is_pt and "Traduzir descrições (AIP itens, PT-BR)" or "Translate descriptions (AIP items, PT-BR)",
+        hover = _is_pt
+            and "Sobrescreve STRINGS.RECIPE_DESC e STRINGS.CHARACTERS.GENERIC.DESCRIBE com traduções PT-BR para TODOS os itens craftáveis do mod Additional Item Package (workshop-1085586145), mais comidas (36 bases + 108 variantes com especiarias), veggies, chesspieces, inscrições, guardiões elementais, livers, rubik fire, sunflower, breadfruit tree, e torch stands. NÃO traduz nomes (NAMES) — apenas descrições. NÃO traduz aip_pet_* (herdam do vanilla DST). Gated em AIP language=portuguese: só aplica quando o config de idioma do AIP está em 'Portuguese' (respeita a escolha do usuário). Defensive: no-op se o AIP não estiver instalado ou se o idioma não for 'Portuguese'. Default: Ativado."
+            or "Overrides STRINGS.RECIPE_DESC and STRINGS.CHARACTERS.GENERIC.DESCRIBE with PT-BR translations for ALL craftable items of the Additional Item Package mod (workshop-1085586145), plus foods (36 base + 108 spice variants), veggies, chesspieces, inscriptions, element guards, livers, rubik fire, sunflower, breadfruit tree, and torch stands. Does NOT translate names (NAMES) — descriptions only. Does NOT translate aip_pet_* (they inherit from vanilla DST). Gated on AIP language=portuguese: only applies when the AIP language config is set to 'Portuguese' (respects the user's choice). Defensive: no-op if AIP is not installed or if its language is not 'Portuguese'. Default: Enabled.",
         options = {
             { description = _is_pt and "Ativado" or "Enabled",  data = true  },
             { description = _is_pt and "Desativado" or "Disabled", data = false },

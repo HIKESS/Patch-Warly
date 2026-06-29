@@ -340,6 +340,206 @@ apenas o conteúdo do livro.
 
 ---
 
+### 6) `jx_descriptions_ptbr.lua` + `jx_descriptions_ptbr_data.lua` — JingXi Furniture: tradução PT-BR das descrições
+
+#### Sintoma
+
+O mod JingXi Furniture (workshop-3597024951) centraliza todas as strings em
+dois arquivos de idioma — `scripts/jxlanguages/jx_en.lua` (inglês) e
+`jx_ch.lua` (chinês) — selecionados automaticamente pelo locale do DST:
+
+```lua
+local locale = GLOBAL.LOC.GetLocaleCode()
+if locale == "zh" or locale == "zht" or locale=="zhr" then
+  modimport("scripts/jxlanguages/jx_ch")  -- Chinês
+else
+  modimport("scripts/jxlanguages/jx_en")  -- Inglês (fallback)
+end
+```
+
+Jogadores PT-BR (locale `pt`/`ptbr`) caem no fallback inglês: todos os itens
+do mod aparecem com **descrições em inglês** no menu de crafting e ao
+examinar. O mod não tem seletor de idioma próprio.
+
+#### Correção
+
+Este patch sobrescreve `STRINGS.RECIPE_DESC` e
+`STRINGS.CHARACTERS.GENERIC.DESCRIBE` com traduções PT-BR para **TODOS** os
+~188 itens do mod (abajures, móveis, decoração, tapetes, paredes, turfs,
+ferramentas, comidas, veículos, etc.).
+
+**NÃO traduz `STRINGS.NAMES`** (nomes dos itens) — por solicitação expressa
+do usuário, apenas descrições são traduzidas. Os nomes continuam no idioma
+original do mod (inglês para PT-BR).
+
+As traduções (182 `RECIPE_DESC` + 187 `DESCRIBE` = 369 entradas) ficam no
+arquivo companion `jx_descriptions_ptbr_data.lua`, que define a global
+`JX_DESC_PTBR = { RECIPE_DESC={...}, DESCRIBE={...} }`. As chaves são
+**UPPERCASE** (ex: `"JX_LAMP"`), correspondendo ao formato usado pelo mod.
+
+#### Bug fixes inclusos
+
+O arquivo EN do JingXi tem 2 bugs que este patch corrige como efeito colateral:
+
+1. **Typo plural `CHESSPIECES_JX`** (linha 584-586 do EN): o arquivo usa a
+   chave plural `CHESSPIECES_JX`, mas o prefab real é `chesspiece_jx`
+   (singular). O DST procura `STRINGS.NAMES.CHESSPIECE_JX` (singular,
+   uppercase) — que **não existe** no EN, então a escultura mostra o nome
+   cru do prefab. Nosso patch PT-BR usa a forma **singular** correta
+   (`CHESSPIECE_JX`), então a descrição aparece.
+
+2. **Bug de overwrite do `JX_RUG_TRIANGLE`** (linhas 340-341 do EN): o
+   arquivo EN acidentalmente escreve em `JX_RUG_FOREST` (em vez de
+   `JX_RUG_TRIANGLE`), sobrescrevendo o texto correto do forest e deixando o
+   triangle sem descrição. Nosso patch seta **ambos** com os textos corretos:
+   `JX_RUG_FOREST` recebe a tradução do forest, `JX_RUG_TRIANGLE` recebe a
+   tradução do triangle (totem tribal).
+
+#### Aliases
+
+O EN tem ~54 assignments de alias do tipo
+`STRINGS.RECIPE_DESC.JX_SOFA_2 = STRINGS.RECIPE_DESC.JX_SOFA_1`. Quando o EN
+carrega, o alias captura o valor EN do base. Sobrescrever `JX_SOFA_1` no
+nosso patch **não** atualiza automaticamente `JX_SOFA_2`. Por isso, setamos
+**explicitamente** ambos (base + alias) com a tradução PT-BR. Os 18 pares
+base→alias cobertos: `JX_SOFA_1→JX_SOFA_2`, `JX_BATTERY1→JX_BATTERY2`,
+`JX_RUG_OVAL→JX_RUG_OVAL_ITEM`, `JX_RUG_FOREST→JX_RUG_FOREST_ITEM`,
+`JX_RUG_AUBUSSON→JX_RUG_AUBUSSON_ITEM`, `JX_RUG_TRADITION→JX_RUG_TRADITION_ITEM`,
+`JX_RUG_SAVANNAH→JX_RUG_SAVANNAH_ITEM`, `JX_RUG_TRIANGLE→JX_RUG_TRIANGLE_ITEM`,
+`JX_RUG_PLATONI→JX_RUG_PLATONI_ITEM`, `WALL_JX_STONE→WALL_JX_STONE_ITEM`,
+`WALL_JX_STONE_2→WALL_JX_STONE_2_ITEM`, `WALL_JX_STONE_3→WALL_JX_STONE_3_ITEM`,
+`WALL_JX_STRAW_1→WALL_JX_STRAW_1_ITEM`, `JX_FENCE→JX_FENCE_ITEM`,
+`JX_FENCE_2→JX_FENCE_2_ITEM`, `JX_PORTABLETENT→JX_PORTABLETENT_ITEM`,
+`JX_PORTABLE_COOK_POT→JX_PORTABLE_COOK_POT_ITEM`,
+`JX_PORTABLE_COOK_POT_2→JX_PORTABLE_COOK_POT_2_ITEM`.
+
+#### Timing
+
+As STRINGS são tabelas globais. O JingXi carrega seus arquivos de idioma
+durante o modmain dele. Este patch roda no modmain do Patch-Warly. Para
+garantir a sobrescrita independente da ordem de carga, aplicamos **duas
+vezes**: (1) imediatamente no modmain, e (2) re-aplicamos no
+`AddPrefabPostInit("world")` + `DoTaskInTime(0)` — no spawn do prefab
+"world", todos os modmain já rodaram, então o estado final das STRINGS está
+estabelecido e nossa sobrescrita vence.
+
+#### Defensivo
+
+- Se o JingXi não estiver instalado, as STRINGS do JingXi nunca são
+  definidas; nossas sobrescritas criam entradas órfãs que ninguém lê
+  (no-op efetivo).
+- Se o locale for Chinês, o JingXi carrega `jx_ch.lua`. Este patch ainda
+  sobrescreve com PT-BR. Para manter Chinês, desative o patch no config.
+- Idempotente: pode rodar múltiplas vezes sem problema.
+- Usa `_G.pcall` (não `pcall` direto) — veja a NOTA SOBRE SANDBOX no
+  modmain e o hotfix v1.5.1 do Patch 4.
+
+---
+
+### 7) `aip_descriptions_ptbr.lua` + `aip_descriptions_ptbr_data.lua` — Additional Item Package: tradução PT-BR das descrições dos itens
+
+#### Sintoma
+
+O mod AIP (workshop-1085586145) usa um padrão de **`LANG_MAP` por prefab**:
+cada arquivo `scripts/prefabs/<name>.lua` tem uma tabela `LANG_MAP` com
+seções por idioma:
+
+```lua
+local LANG_MAP = {
+  english   = { NAME="...", REC_DESC="...", DESC="..." },
+  chinese   = { NAME="...", REC_DESC="...", DESC="..." },
+  portuguese = { NAME="...", REC_DESC="...", DESC="..." }, -- só ~5 prefabs têm!
+}
+local LANG = LANG_MAP[language] or LANG_MAP.english  -- fallback english
+```
+
+Quando o usuário seleciona "Portuguese" no config do AIP, o prefab procura a
+seção `portuguese` — mas **apenas ~5 prefabs + 17 comidas** têm essa seção.
+Os demais caem no fallback inglês. Resultado: selecionar "Portuguese" faz a
+maioria dos itens aparecer com descrições em inglês.
+
+#### Correção
+
+Este patch sobrescreve `STRINGS.RECIPE_DESC` e
+`STRINGS.CHARACTERS.GENERIC.DESCRIBE` com traduções PT-BR para **TODOS** os
+itens craftáveis do AIP, mais os itens gerados por loops dinâmicos:
+
+| Categoria | Qtd. | Exemplos |
+|-----------|------|----------|
+| Itens estáticos craftáveis | ~54 | AIP_BLOOD_PACKAGE, AIP_FISH_SWORD, INCINERATOR, POPCORNGUN, DARK_OBSERVER, AIP_DIVINE_RAPIER, AIP_HEARTHSTONE, AIP_GOLDENGO, ... |
+| Chesspieces | 16 | CHESSPIECE_AIP_MOON, CHESSPIECE_AIP_DOUJIANG, ... (8 peças × 2: peça + builder) |
+| Inscrições | 11 | AIP_DOU_FIRE_INSCRIPTION, AIP_DOU_ICE_INSCRIPTION, ... |
+| Comidas (base) | 36 | EGG_PANCAKE, AIP_FOOD_PLOV, AIP_FOOD_LOTUS_PORRIDGE, ... |
+| Comidas (especiarias) | 108 | EGG_PANCAKE_SPICE_GARLIC, EGG_PANCAKE_SPICE_SUGAR, EGG_PANCAKE_SPICE_CHILI, ... (36 × 3) |
+| Veggies | 9 | AIP_VEGGIE_WHEAT, AIP_VEGGIE_WHEAT_COOKED, AIP_VEGGIE_WHEAT_SEEDS, ... (3 × 3) |
+| Livers | 6 | AIP_LIVER_GRASS, AIP_LIVER_LOG, AIP_LIVER_STONE, ... |
+| Guardiões elementais | 6 | AIP_DOU_ELEMENT_FIRE_GUARD, ..._ICE_GUARD, ..._SAND_GUARD, ... |
+| Rubik fire | 4 | AIP_RUBIK_FIRE_RED, ..._GREEN, ..._BLUE, ..._YELLOW |
+| Sunflower (estágios) | 3 | AIP_SUNFLOWER_SHORT, ..._TALL, ..._GHOST |
+| Breadfruit tree (estágios) | 3 | AIP_BREADFRUIT_TREE_SHORT, ..._MID, ..._TALL |
+| Torch stands | 5 | AIP_TORCH_STAND_MAIN, ..._CRITTER, ..._PILLAR, ..._CRAB, ..._PORTAL |
+| **Total** | **670** | 225 RECIPE_DESC + 445 DESCRIBE |
+
+**NÃO traduz `STRINGS.NAMES`** (nomes dos itens) — apenas descrições.
+
+**NÃO traduz `aip_pet_*`** — esses prefabs herdam `STRINGS` do vanilla DST
+(`aip_pet_rabbit` copia `STRINGS.NAMES.RABBIT`), e o DST já fornece PT-BR
+para todos os prefabs vanilla.
+
+#### Gate
+
+Este patch **só aplica** quando o config de idioma do AIP é `"portuguese"`.
+Se o usuário selecionou English/Chinese/Spanish/Russian/Korean no AIP, o
+patch é no-op (respeita a escolha do usuário). Isso é consistente com o
+Patch 5 (tradução do storybook), que também é gated em `language=portuguese`.
+
+Leitura do config do AIP usa dois métodos para robustez:
+1. `GLOBAL.GetModConfigData("language", "workshop-1085586145")`
+2. `_G.aipGetModConfig("language")` (função global do AIP)
+
+#### Variantes com especiaria (spice variants)
+
+O AIP gera automaticamente 3 variantes com especiarias para cada comida
+base, com prefixos `(Garlic) `, `(Sugar) `, `(Chili) `. Para PT-BR,
+geramos entradas com prefixos `(Alho) `, `(Açúcar) `, `(Pimenta) `. Para
+cada uma das 36 comidas base, incluímos 4 entradas: a base + 3 variantes.
+A chave da variante é `<BASE>_SPICE_GARLIC`, `<BASE>_SPICE_SUGAR`,
+`<BASE>_SPICE_CHILI`. O valor é o prefixo PT-BR + o nome PT-BR da comida.
+
+#### Inscrições — quirks do upstream
+
+No AIP, `RECIPE_DESC` e `DESCRIBE` das inscrições compartilham o **mesmo
+valor** (quirk do mod upstream — ambos usam `PREFAB_LANG.DESC`). Nosso
+patch preserva isso: usamos a mesma string PT-BR para ambos.
+
+#### Os 5 itens que já tinham PT
+
+5 prefabs do AIP já têm seção `portuguese` no LANG_MAP:
+`aip_blood_package`, `aip_fish_sword`, `dark_observer`, `incinerator`,
+`popcorngun`. O patch **melhora** essas traduções para consistência com o
+resto (ex.: "Um pacote de vida rapida" → "Um pacote de cura rápida." com
+acento; "Muita fome pra come-lo" → "Forte no oceano." traduzindo o inglês
+corretamente em vez do russo).
+
+#### Timing
+
+AIP tem `priority=-111` (carrega cedo). Patch-Warly tem `priority=0`. O
+modmain do AIP roda antes do Patch-Warly. Mas os arquivos de prefab do AIP
+são carregados pelo DST durante a fase de prefabs. Para garantir que TODAS
+as STRINGS do AIP já foram definidas, aplicamos **duas vezes**: (1)
+imediatamente no modmain, e (2) re-aplicamos no `AddPrefabPostInit("world")`
++ `DoTaskInTime(0)`.
+
+#### Defensivo
+
+- Se o AIP não estiver instalado, `GetModConfigData("language",
+  "workshop-1085586145")` falha/retorna nil, e o patch é no-op.
+- Se o idioma do AIP não for `"portuguese"`, o patch é no-op.
+- Idempotente.
+- Usa `_G.pcall` (não `pcall` direto).
+
+---
+
 Bloqueia as **fontes de luz** do mod workshop-3597024951 (JingXi Furniture /
 景熹家居). Os nomes de prefab abaixo foram obtidos por **análise direta do
 código-fonte** do mod em
@@ -430,6 +630,8 @@ idempotente.
 | `block_light_emitting_crafts` | `true` | Bloqueia TODAS as fontes de luz puras do JingXi (nomes EXATOS do código-fonte): `jx_lamp`, `jx_lamp_2`, `jx_mushroom_light`, `jx_mushroom_light_2`, `jx_lantern`, `jx_flashlight`. NÃO bloqueia itens funcionais (cookpot/forno/TV) — preserva cozinha/aquecimento. |
 | `fix_gemcore_craftmenu_crash` | `true` | Corrige o crash `HasGemDictIngredients nil` do Gem Core (workshop-1378549454) ao hover de PinSlot de filter recipe (ex.: `filter_ARMOUR`) do Craft Menu Tweak (workshop-2784074596). Instala fallback seguro na classe do widget. No-op se o Gem Core não estiver instalado. |
 | `translate_aip_storybook` | `true` | Injeta a tradução PT-BR do livro "API storybook" do mod Additional Item Package (workshop-1085586145) via hook de `require()`. Apenas o conteúdo do livro é traduzido (18 capítulos). No-op se o mod AIP não estiver instalado ou se o idioma não for "Portuguese". |
+| `translate_jx_descriptions` | `true` | Sobrescreve `STRINGS.RECIPE_DESC` e `STRINGS.CHARACTERS.GENERIC.DESCRIBE` com PT-BR para TODOS os ~188 itens do JingXi Furniture (workshop-3597024951). NÃO traduz nomes (NAMES) — apenas descrições. Também fixa 2 bugs do arquivo EN (typo `CHESSPIECES_JX` plural, overwrite do `JX_RUG_TRIANGLE`). No-op se o JingXi não estiver instalado. |
+| `translate_aip_descriptions` | `true` | Sobrescreve `STRINGS.RECIPE_DESC` e `DESCRIBE` com PT-BR para TODOS os itens craftáveis do AIP (workshop-1085586145) + comidas/veggies/chesspieces/inscrições/etc. NÃO traduz nomes. NÃO traduz `aip_pet_*` (herdam do vanilla). Gated em AIP `language=portuguese`. No-op se o AIP não estiver instalado ou se o idioma não for "Portuguese". |
 
 ### Whitelist — NÃO bloquear itens específicos
 
@@ -505,6 +707,31 @@ ou mensagem indicando qual `require` falhou — o resto do patch ainda tenta rod
 ---
 
 ## Histórico de versões
+
+### `v1.6.0` — Patch 6 (JingXi descrições PT-BR) + Patch 7 (AIP descrições PT-BR)
+
+- **Patch 6**: traduz para PT-BR as **descrições** (`RECIPE_DESC` + `DESCRIBE`)
+  de TODOS os ~188 itens do mod JingXi Furniture (workshop-3597024951) —
+  abajures, móveis, decoração, tapetes, paredes, turfs, ferramentas, comidas,
+  veículos, etc. O mod JingXi carrega inglês para locales não-chineses, então
+  jogadores PT-BR viam tudo em inglês por padrão. Agora veem português.
+  **NÃO traduz nomes** dos itens (per pedido do usuário — apenas descrições).
+  Também fixa 2 bugs do arquivo EN do JingXi: o typo plural `CHESSPIECES_JX`
+  (deveria ser singular `CHESSPIECE_JX`) e o bug de overwrite do
+  `JX_RUG_TRIANGLE` (o EN sobrescrevia `JX_RUG_FOREST` em vez de setar
+  `JX_RUG_TRIANGLE`). 182 RECIPE_DESC + 187 DESCRIBE = 369 traduções.
+- **Patch 7**: traduz para PT-BR as **descrições** de TODOS os itens
+  craftáveis do mod Additional Item Package (workshop-1085586145), mais as
+  comidas (36 bases + 108 variantes com especiarias alho/açúcar/pimenta),
+  veggies (9), chesspieces (16), inscrições (11), guardiões elementais (6),
+  livers (6), rubik fire (4), sunflower (3), breadfruit tree (3), e torch
+  stands (5). **NÃO traduz nomes**. **NÃO traduz `aip_pet_*`** (herdam do
+  vanilla DST). Gated em AIP `language=portuguese` — respeita o config do
+  AIP. 225 RECIPE_DESC + 445 DESCRIBE = 670 traduções.
+- Ambos os patches usam `_G.pcall` (não `pcall` direto), seguindo a
+  convenção de sandbox estabelecida no v1.5.1. Ambos são defensivos:
+  no-op se o mod-alvo não estiver instalado.
+- Bump de versão 1.5.1 → 1.6.0.
 
 ### `v1.5.1` — hotfix de sandbox
 
