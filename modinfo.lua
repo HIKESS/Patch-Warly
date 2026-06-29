@@ -17,7 +17,7 @@ local _is_pt = _locale == "pt" or _locale == "ptbr" or _locale == "brazilian"
 
 name = "Warly Kitchen + Admin Revive + Craft Block Patch"
 author = "HIKESS patch"
-version = "1.3.0"
+version = "1.5.0"
 
 api_version = 10
 dst_compatible = true
@@ -26,10 +26,13 @@ client_only_mod = false
 
 description = [[
 Patch mod for HIKESS's "NPC Friends" (workshop-3684000581), "Admin Panel"
-(workshop-3678857150), and JingXi Furniture (workshop-3597024951).
+(workshop-3678857150), JingXi Furniture (workshop-3597024951), a crash
+compatibility fix between [API] Gem Core (workshop-1378549454) and
+Craft Menu Tweak (workshop-2784074596), and a PT-BR translation for the
+"API storybook" book item from Additional Item Package (workshop-1085586145).
 
-Applies three fixes that run together with the original mods (dependencies
-on the first two are kept; the third is optional / defensive):
+Applies five patches that run together with the original mods (dependencies
+on the first two are kept; the rest are optional / defensive):
 
 1) NPC Friends - Warly
    * Removes Warly's auto-built kitchen (cookpot + icebox + 2 chests) that is
@@ -71,6 +74,33 @@ on the first two are kept; the third is optional / defensive):
      vending_machine) are NOT blocked, to preserve cooking/heating features.
    * If the JingXi Furniture mod is not installed, nothing matches (no-op).
      The mod is NOT a hard dependency.
+
+4) Gem Core + Craft Menu Tweak crash fix (fix_gemcore_craftmenu_crash)
+   * Fixes the crash:
+       "attempt to call method 'HasGemDictIngredients' (a nil value)"
+       at gemdictionary/ui.lua:249 in CraftingMenuIngredients:SetRecipe
+     that occurs when hovering a PinSlot pinned to a FILTER recipe
+     (e.g. filter_ARMOUR) created by Craft Menu Tweak's pin-bar feature.
+     Gem Core hooks SetRecipe and calls self:HasGemDictIngredients(recipe),
+     but that method is nil for filter recipes / when craftinghighlight is off.
+   * The fix installs a safe fallback HasGemDictIngredients on the
+     CraftingMenuIngredients widget class (returns false -> no highlighting
+     -> no crash), re-checked at world load for load-order robustness.
+   * Defensive: no-op if Gem Core is not installed.
+
+5) Additional Item Package storybook PT-BR translation (translate_aip_storybook)
+   * The mod workshop-1085586145 (Additional Item Package) has a "Portuguese"
+     language option in its config, but the workshop version does NOT include
+     the portuguese.lua story file nor the LANG_MAP entry in the storybook
+     widget. Selecting "Portuguese" falls back to English.
+   * This patch injects a full PT-BR translation (18 chapters of story prose)
+     for the "API storybook" book item via a require() hook: when the AIP
+     storybook widget loads its fallback English data and the AIP language is
+     set to "Portuguese", the hook returns the PT-BR translation instead.
+   * Only the storybook book item is translated. Item names, UI labels, and
+     other mod strings are untouched.
+   * Defensive: no-op if AIP is not installed, or if its language is not
+     "Portuguese".
 
 Load order for (1) and (2) is handled by the declared dependencies.
 ]]
@@ -163,6 +193,42 @@ configuration_options = {
         hover = _is_pt
             and "Bloqueia TODAS as fontes de luz puras do mod JingXi (nomes EXATOS de prefab do código-fonte): jx_lamp, jx_lamp_2, jx_mushroom_light, jx_mushroom_light_2, jx_lantern, jx_flashlight. NÃO bloqueia itens funcionais onde luz é efeito colateral (cookpot/forno/TV/etc.) — preserva cozinha e aquecimento."
             or "Blocks ALL pure light sources of the JingXi mod (EXACT prefab names from source): jx_lamp, jx_lamp_2, jx_mushroom_light, jx_mushroom_light_2, jx_lantern, jx_flashlight. Does NOT block functional items where light is a side-effect (cookpot/oven/TV/etc.) — preserves cooking and heating.",
+        options = {
+            { description = _is_pt and "Ativado" or "Enabled",  data = true  },
+            { description = _is_pt and "Desativado" or "Disabled", data = false },
+        },
+        default = true,
+    },
+    -- ──────────────────────────────────────────────────────────────────────
+    --  Patch 4: compat Gem Core (workshop-1378549454) + Craft Menu Tweak
+    --           (workshop-2784074596). Corrige o crash "attempt to call
+    --           method 'HasGemDictIngredients' (a nil value)" ao passar o
+    --           mouse sobre um PinSlot fixado em um recipe de FILTER (ex.:
+    --           filter_ARMOUR). Defensive: no-op se o Gem Core não existir.
+    -- ──────────────────────────────────────────────────────────────────────
+    {
+        name = "fix_gemcore_craftmenu_crash",
+        label = _is_pt and "Corrigir crash Gem Core + Craft Menu" or "Fix Gem Core + Craft Menu crash",
+        hover = _is_pt
+            and "Corrige o crash 'attempt to call method HasGemDictIngredients (a nil value)' que acontece ao passar o mouse sobre um PinSlot fixado em um recipe de FILTER (ex.: filter_ARMOUR) criado pelo Craft Menu Tweak. O Gem Core (workshop-1378549454) faz hook do SetRecipe do widget de ingredientes e chama self:HasGemDictIngredients(recipe), mas esse metodo é nil para filter recipes / quando o highlighting está desligado. O patch instala um fallback seguro (retorna false) na classe do widget. Defensive: no-op se o Gem Core não estiver instalado."
+            or "Fixes the 'attempt to call method HasGemDictIngredients (a nil value)' crash that happens when hovering a PinSlot pinned to a FILTER recipe (e.g. filter_ARMOUR) created by Craft Menu Tweak. Gem Core (workshop-1378549454) hooks the ingredient widget's SetRecipe and calls self:HasGemDictIngredients(recipe), but that method is nil for filter recipes / when highlighting is off. The patch installs a safe fallback (returns false) on the widget class. Defensive: no-op if Gem Core is not installed.",
+        options = {
+            { description = _is_pt and "Ativado" or "Enabled",  data = true  },
+            { description = _is_pt and "Desativado" or "Disabled", data = false },
+        },
+        default = true,
+    },
+    -- ──────────────────────────────────────────────────────────────────────
+    --  Patch 5: Additional Item Package (workshop-1085586145) — tradução
+    --           PT-BR do livro "API storybook". Defensive: no-op se o mod
+    --           AIP não estiver instalado ou se o idioma não for "portuguese".
+    -- ──────────────────────────────────────────────────────────────────────
+    {
+        name = "translate_aip_storybook",
+        label = _is_pt and "Traduzir livro API storybook (PT-BR)" or "Translate API storybook book (PT-BR)",
+        hover = _is_pt
+            and "Injeta a tradução PT-BR do livro 'API storybook' do mod Additional Item Package (workshop-1085586145). O mod AIP tem uma opção de idioma 'Portuguese' no config, mas a versão de workshop não inclui o arquivo de tradução — selecionar 'Portuguese' faz o livro cair no fallback English. Este patch corrige isso via hook de require(): quando o widget do livro carrega os dados em inglês (fallback) e o idioma do AIP está em 'Portuguese', o hook retorna a tradução PT-BR no lugar. Apenas o conteúdo do livro storybook é traduzido (18 capítulos). Defensive: no-op se o mod AIP não estiver instalado ou se o idioma não for 'Portuguese'."
+            or "Injects the PT-BR translation of the 'API storybook' book item from the Additional Item Package mod (workshop-1085586145). The AIP mod has a 'Portuguese' language option in its config, but the workshop version does not include the translation file — selecting 'Portuguese' falls back to English. This patch fixes that via a require() hook: when the storybook widget loads its fallback English data and the AIP language is set to 'Portuguese', the hook returns the PT-BR translation instead. Only the storybook book content is translated (18 chapters). Defensive: no-op if the AIP mod is not installed or if its language is not 'Portuguese'.",
         options = {
             { description = _is_pt and "Ativado" or "Enabled",  data = true  },
             { description = _is_pt and "Desativado" or "Disabled", data = false },
