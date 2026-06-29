@@ -239,6 +239,23 @@ no-op completo sem o Gem Core. Da mesma forma, se o Craft Menu Tweak não
 estiver instalado, nenhum filter recipe é criado, mas o fallback continua
 válido para qualquer outro mod que dispare o mesmo caminho.
 
+#### Nota de sandbox (corrigido em `v1.5.1`)
+
+Em ambientes `modimport` do DST, funções da biblioteca padrão do Lua como
+`pcall`, `xpcall`, `rawget`, `rawset`, `loadstring`, etc. **não são expostas
+como globais diretos** do env do mod — elas são `nil`. Precisam ser acessadas
+via `GLOBAL` / `_G` (ex.: `_G.pcall`). A versão `v1.5.0` deste patch usava
+`pcall(...)` direto, o que crashava o **modmain inteiro** em modimport com:
+
+```
+[string "../mods/Patch-Warly/scripts/patch/gemcore_c..."]:107:
+attempt to call global 'pcall' (a nil value)
+```
+
+Esse crash abortava todos os patches seguintes (incluindo o Patch 5 de
+tradução do AIP storybook) — o mod inteiro ficava inerte. `v1.5.1` corrige
+usando `_G.pcall` (com verificação defensiva de tipo antes de chamar).
+
 ---
 
 ### 5) `aip_storybook_ptbr.lua` + `aip_storybook_ptbr_data.lua` — Additional Item Package: tradução PT-BR do livro storybook
@@ -484,6 +501,48 @@ ou mensagem indicando qual `require` falhou — o resto do patch ainda tenta rod
   `npc/npc_inventory_util` ou o RPC `DstAdmin/AdminAction`, os `require` /
   re-registros correspondentes emitirão um `AVISO` no log e aquele pedaço do
   patch não será aplicado (sem quebrar o jogo).
+
+---
+
+## Histórico de versões
+
+### `v1.5.1` — hotfix de sandbox
+
+- **Corrige crash de startup** introduzido em `v1.5.0`: o Patch 4
+  (`gemcore_craftmenu_fix.lua`) usava `pcall(...)` direto, mas `pcall` **não
+  é exposto como global** no env de `modimport` do DST (ele é `nil`). O
+  modmain inteiro abortava com `attempt to call global 'pcall' (a nil value)`,
+  o que **silenciosamente desativava também o Patch 5** (tradução PT-BR do
+  AIP storybook) — ele nunca chegava a ser carregado.
+- Correção: usar `_G.pcall` (com fallback defensivo de tipo antes de chamar),
+  seguindo a mesma convenção já usada no Patch 5
+  (`aip_storybook_ptbr.lua`) e documentada na `NOTA SOBRE SANDBOX` do
+  `modmain.lua`.
+- Audit de todos os scripts de patch confirmou que nenhum outro usa globais
+  de sandbox problemáticos (`pcall`, `xpcall`, `rawget`, `rawset`,
+  `loadstring`, etc.) — apenas o Patch 4 tinha o bug.
+
+### `v1.5.0` — Patch 4 (Gem Core crash fix) + Patch 5 (AIP storybook PT-BR)
+
+- Adicionado o Patch 4: corrige o crash `attempt to call method
+  'HasGemDictIngredients' (a nil value)` ao passar o mouse sobre um PinSlot
+  fixado em um *filter recipe* do Craft Menu Tweak (`workshop-2784074596`),
+  causado pelo hook de `SetRecipe` do Gem Core (`workshop-1378549454`).
+- Adicionado o Patch 5: injeta tradução PT-BR do livro "API storybook" do
+  Additional Item Package (`workshop-1085586145`) via hook de `require()`,
+  ativado quando o idioma do AIP é "Portuguese".
+
+### `v1.3.0` — Whitelist de fontes de luz
+
+- Adicionadas 6 opções `allow_*` (uma por fonte de luz do JingXi) para NÃO
+  bloquear itens específicos, mantendo o resto do bloqueio ativo.
+
+### `v1.2.0` e anteriores
+
+- Bloqueio de crafts do JingXi Furniture pelos nomes EXATOS de prefab.
+- Patch do Warly: remoção da cozinha automática, priorização de freezer,
+  uso de todas as cookpots próximas.
+- Patch do Admin Panel: bloqueio de ressurreição.
 
 ---
 

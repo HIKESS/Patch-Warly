@@ -104,7 +104,21 @@ local function install_fallback()
     -- require do script do jogo. pcall protege contra ambiente que nao
     -- exponha o script (ex.: servidor dedicado sem frontend — improvavel,
     -- mas seguro).
-    local ok, CMI = pcall(_G.require, "widgets/redux/craftingmenu_ingredients")
+    --
+    -- SANDBOX NOTE: no modimport do DST, a funcao `pcall` NAO é exposta
+    -- como global direto do env do mod (ela é nil). Precisamos acessá-la
+    -- via GLOBAL / _G, senao o patch inteiro crasha em modimport com
+    -- "attempt to call global 'pcall' (a nil value)" — exatamente o bug
+    -- que este commit corrige. O mesmo vale para xpcall, rawget, rawset,
+    -- loadstring, etc. Veja a NOTA SOBRE SANDBOX no modmain.lua.
+    local _pcall = _G.pcall
+    if type(_pcall) ~= "function" then
+        -- Ambient extremamente restrito (improvavel): sem pcall, sem patch.
+        -- Loga e sai sem crashar o modmain.
+        print("[WarlyAdminPatch][GemCoreFix] AVISO: _G.pcall indisponivel neste ambiente (no-op).")
+        return false
+    end
+    local ok, CMI = _pcall(_G.require, "widgets/redux/craftingmenu_ingredients")
     if not (ok and CMI and type(CMI) == "table") then
         print("[WarlyAdminPatch][GemCoreFix] AVISO: nao foi possivel require 'widgets/redux/craftingmenu_ingredients' ("
             .. tostring(CMI) .. "). Patch de Gem Core nao aplicado neste ambiente (no-op).")
