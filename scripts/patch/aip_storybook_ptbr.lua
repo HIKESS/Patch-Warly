@@ -35,9 +35,38 @@
 --    A tabela de tradução (1623 linhas, 18 capítulos) é carregada via
 --    modimport do arquivo aip_storybook_ptbr_data.lua, que define a global
 --    AIP_STORYBOOK_PTBR_DATA no env do mod.
+--
+--  ----------------------------------------------------------------------------
+--  NOTA SOBRE STRICT.LUA (hotfix v1.6.1)
+--  ----------------------------------------------------------------------------
+--  O DST roda mods sob scripts/strict.lua, que instala metamethods __index e
+--  __newindex em _G (GLOBAL). Esses metamethods lançam erro quando você LÊ
+--  ou ESCREVE uma global "não declarada". A versão v1.6.0 deste patch usava:
+--      if _G._WARLY_AIP_STORYBOOK_HOOK_INSTALLED then  -- LEITURA
+--      ...
+--      _G._WARLY_AIP_STORYBOOK_HOOK_INSTALLED = true   -- ESCRITA
+--  Na PRIMEIRA carga, a variável ainda não existe -> a LEITURA dispara:
+--      [string "...aip_storybook_ptbr.lua"]:60:
+--      variable '_WARLY_AIP_STORYBOOK_HOOK_INSTALLED' is not declared
+--      (scripts/strict.lua:23)
+--  Esse erro abortava o modimport do Patch 5, o que por sua vez abortava
+--  TODO o modmain do Patch-Warly — deixando Patches 1-4 e 6-7 sem carregar.
+--  Resultado: servidor/world caía no startup ("Force aborting...").
+--
+--  CORREÇÃO: acessamos a guard via rawget/rawset, que ignoram os metamethods
+--  do strict.lua. Mesmo padrão já usado nos commits 0a78536 e 39a1024
+--  (pcall/rawget/rawset via GLOBAL no sandbox do modimport).
 -- ============================================================================
 
 local _G = GLOBAL
+
+-- rawget/rawset via _G (bypass do strict.lua). No sandbox do modimport,
+-- rawget/rawset NÃO são globais diretos do env do mod — precisam vir de _G.
+-- Se _G.rawget/_G.rawset forem nil (ambiente extremamente restrito), o patch
+-- segue sem a guard de reinstall — o hook seria reinstalado em recarga, mas
+-- isso só acontece se o mod for hot-reloaded, o que é raro e não-fatal.
+local _rawget = _G.rawget
+local _rawset = _G.rawset
 
 -- Tabela PT-BR (definida pelo modimport de aip_storybook_ptbr_data.lua).
 -- Capturada como local para performance e para evitar lookup a cada require.
@@ -57,7 +86,9 @@ if type(_orig_require) ~= "function" then
 end
 
 -- Evita instalar o hook duas vezes (caso o patch seja recarregado).
-if _G._WARLY_AIP_STORYBOOK_HOOK_INSTALLED then
+-- USA rawget para NÃO disparar o strict.lua (que lançaria "variable
+-- '_WARLY_AIP_STORYBOOK_HOOK_INSTALLED' is not declared" na primeira carga).
+if type(_rawget) == "function" and _rawget(_G, "_WARLY_AIP_STORYBOOK_HOOK_INSTALLED") then
     print("[WarlyAdminPatch] AIP-Storybook-PTBR: hook já instalado, pulando.")
     return
 end
@@ -106,7 +137,16 @@ _G.require = function(modname)
     return _orig_require(modname)
 end
 
-_G._WARLY_AIP_STORYBOOK_HOOK_INSTALLED = true
+-- Marca o hook como instalado. USA rawset para NÃO disparar o strict.lua
+-- (que lançaria "assign to undeclared variable '_WARLY_AIP_STORYBOOK_HOOK_INSTALLED'"
+-- — o modimport roda como chunk what="Lua", não "main", então o __newindex
+-- do strict.lua também pega writes de novas globais). Se _rawset não estiver
+-- disponível (ambiente extremamente restrito), simplesmente não marcamos —
+-- o pior caso é reinstalar o hook num hot-reload, o que é no-op efetivo
+-- (o novo hook faz a mesma coisa).
+if type(_rawset) == "function" then
+    _rawset(_G, "_WARLY_AIP_STORYBOOK_HOOK_INSTALLED", true)
+end
 
 print("[WarlyAdminPatch] AIP-Storybook-PTBR: hook de require instalado.")
 print("[WarlyAdminPatch] AIP-Storybook-PTBR: quando o AIP language=portuguese, o livro storybook usará a tradução PT-BR.")

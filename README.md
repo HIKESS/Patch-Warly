@@ -708,6 +708,55 @@ ou mensagem indicando qual `require` falhou — o resto do patch ainda tenta rod
 
 ## Histórico de versões
 
+### `v1.6.1` — hotfix de strict.lua (Patch 5)
+
+- **Corrige crash de startup** introduzido em `v1.6.0`: o Patch 5
+  (`aip_storybook_ptbr.lua`) usava uma *guard* global para evitar reinstalar
+  o hook de `require()`:
+  ```lua
+  if _G._WARLY_AIP_STORYBOOK_HOOK_INSTALLED then   -- linha 60 (LEITURA)
+      return
+  end
+  ...
+  _G._WARLY_AIP_STORYBOOK_HOOK_INSTALLED = true    -- linha 109 (ESCRITA)
+  ```
+  O DST roda mods sob `scripts/strict.lua`, que instala metamethods `__index`
+  e `__newindex` em `_G` (GLOBAL). Esses metamethods lançam erro quando se
+  LÊ ou ESCREVE uma global "não declarada". O chunk de `modimport` roda como
+  `what="Lua"` (não `"main"`), então **nenhum dos dois caminhos de isenção
+  do strict.lua se aplica**. Na primeira carga, a variável ainda não existe
+  → a **leitura** da linha 60 dispara:
+  ```
+  [string "...aip_storybook_ptbr.lua"]:60:
+  variable '_WARLY_AIP_STORYBOOK_HOOK_INSTALLED' is not declared
+  (scripts/strict.lua:23)
+  ```
+  Esse erro abortava o `modimport` do Patch 5, o que por sua vez abortava
+  **TODO o `modmain`** do Patch-Warly — deixando Patches 1–4 e 6–7 sem
+  carregar. Resultado: o servidor/world caía no startup
+  (`Force aborting...`), e o diagnóstico do CRSM apontava
+  *"High-Risk Mod: Warly Kitchen + Admin Revive + Craft Block Patch"*.
+- **Causa do miss no audit do v1.5.1**: o audit de sandbox do v1.5.1 procurou
+  globais de sandbox ausentes (`pcall`/`rawget`/`rawset`/`loadstring` nil no
+  env do mod) — **não** procurou por violações de `strict.lua` (que é um
+  problema diferente: a global *existe* em `_G`, mas não está "declarada" na
+  tabela `__declared` do strict). `pcall`/`rawget`/`rawset` estavam sendo
+  acessados via `_G.pcall` etc. (correto), mas a guard booleana do Patch 5
+  foi acessada como `_G._WARLY_AIP_STORYBOOK_HOOK_INSTALLED` direto, sem
+  `rawget`/`rawset`. É uma classe de bug sutilmente diferente e passou
+  batido.
+- **Correção**: acessar a guard via `_G.rawget` / `_G.rawset`, que ignoram
+  os metamethods do `strict.lua`. Mesmo padrão já consagrado nos commits
+  `0a78536` e `39a1024` (`pcall`/`rawget`/`rawset` via `GLOBAL` no sandbox
+  do modimport). Defensivo: se `_G.rawget`/`_G.rawset` forem `nil`
+  (ambiente extremamente restrito), o patch segue sem a guard — o pior
+  caso é reinstalar o hook num hot-reload, o que é no-op efetivo.
+- **Audit completo refeito** (desta vez incluindo `strict.lua`): confirmado
+  que **apenas o Patch 5** tinha o padrão `if _G.<UNDECLARED> then`. Os
+  Patches 1–4 e 6–7 não usam guards globais (usam locais, ou idempotência
+  por sobrescrita de tabela / checagem `type(...) == "function"`).
+- Bump de versão 1.6.0 → 1.6.1.
+
 ### `v1.6.0` — Patch 6 (JingXi descrições PT-BR) + Patch 7 (AIP descrições PT-BR)
 
 - **Patch 6**: traduz para PT-BR as **descrições** (`RECIPE_DESC` + `DESCRIBE`)
