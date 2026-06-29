@@ -17,7 +17,7 @@ local _is_pt = _locale == "pt" or _locale == "ptbr" or _locale == "brazilian"
 
 name = "Warly Kitchen + Admin Revive + Craft Block Patch"
 author = "HIKESS patch"
-version = "1.6.1"
+version = "1.7.0"
 
 api_version = 10
 dst_compatible = true
@@ -134,6 +134,23 @@ on the first two are kept; the rest are optional / defensive):
    * Gated on AIP language="portuguese" — respects the user's AIP language
      choice. Defensive: no-op if AIP is not installed or language is not
      "Portuguese".
+
+8) Brazilian Translation SubGender crash fix (fix_br_translation_subgender_crash)
+   * Fixes the crash "attempt to call method 'find' (a nil value)" at
+     scripts/gender.lua:149 in the Brazilian Translation mod
+     (workshop-2785731953, v8.3.0). The bug triggers when Combat:BattleCry
+     passes a TABLE (speech structure) to talker:Say — the mod's translation
+     hook calls Genderer.SubGender(table) which tries table:find() and
+     crashes (tables have no :find()). Repro: Wagstaff attacks a Bunnyman
+     with a cane — the battle cry triggers the crash.
+   * The patch wraps talker:Say (deferred via DoTaskInTime(0) to run after
+     the BR mod's hook, which has priority=-2000) and converts table->string
+     before the BR hook processes it, preventing the crash. Trade-off: table
+     metadata (.emote) is lost, text is preserved.
+   * NOTE: the PRIMARY fix is in the mod itself (github.com/HIKESS/Mods
+     commit 7056584); this patch is DEFENSIVE for Steam Workshop users who
+     don't have the fix yet. Defensive: no-op if the BR mod is not installed
+     or if the bug is already fixed.
 
 Load order for (1) and (2) is handled by the declared dependencies.
 ]]
@@ -297,6 +314,24 @@ configuration_options = {
         hover = _is_pt
             and "Sobrescreve STRINGS.RECIPE_DESC e STRINGS.CHARACTERS.GENERIC.DESCRIBE com traduções PT-BR para TODOS os itens craftáveis do mod Additional Item Package (workshop-1085586145), mais comidas (36 bases + 108 variantes com especiarias), veggies, chesspieces, inscrições, guardiões elementais, livers, rubik fire, sunflower, breadfruit tree, e torch stands. NÃO traduz nomes (NAMES) — apenas descrições. NÃO traduz aip_pet_* (herdam do vanilla DST). Gated em AIP language=portuguese: só aplica quando o config de idioma do AIP está em 'Portuguese' (respeita a escolha do usuário). Defensive: no-op se o AIP não estiver instalado ou se o idioma não for 'Portuguese'. Default: Ativado."
             or "Overrides STRINGS.RECIPE_DESC and STRINGS.CHARACTERS.GENERIC.DESCRIBE with PT-BR translations for ALL craftable items of the Additional Item Package mod (workshop-1085586145), plus foods (36 base + 108 spice variants), veggies, chesspieces, inscriptions, element guards, livers, rubik fire, sunflower, breadfruit tree, and torch stands. Does NOT translate names (NAMES) — descriptions only. Does NOT translate aip_pet_* (they inherit from vanilla DST). Gated on AIP language=portuguese: only applies when the AIP language config is set to 'Portuguese' (respects the user's choice). Defensive: no-op if AIP is not installed or if its language is not 'Portuguese'. Default: Enabled.",
+        options = {
+            { description = _is_pt and "Ativado" or "Enabled",  data = true  },
+            { description = _is_pt and "Desativado" or "Disabled", data = false },
+        },
+        default = true,
+    },
+    -- ──────────────────────────────────────────────────────────────────────
+    --  Patch 8: Tradução Brasileira (workshop-2785731953) — crash fix
+    --           do SubGender (gender.lua:149) quando BattleCry passa uma
+    --           table speech para talker:Say. Defensive: no-op se o mod
+    --           BR não estiver instalado ou se o bug já estiver corrigido.
+    -- ──────────────────────────────────────────────────────────────────────
+    {
+        name = "fix_br_translation_subgender_crash",
+        label = _is_pt and "Corrigir crash SubGender (Tradução Brasileira)" or "Fix SubGender crash (Brazilian Translation)",
+        hover = _is_pt
+            and "Corrige o crash 'attempt to call method find (a nil value)' em scripts/gender.lua:149 do mod Tradução Brasileira (workshop-2785731953, v8.3.0). O bug ocorre quando Combat:BattleCry passa uma TABLE (estrutura de speech) para talker:Say — o hook de tradução do mod BR chama Genderer.SubGender(table) que tenta table:find() e crasha (tables não têm :find()). Repro: Wagstaff ataca Bunnyman com bengala — o battle cry dispara o crash. O patch wrappeia talker:Say (deferido via DoTaskInTime(0) para rodar depois do hook do mod BR, que tem priority=-2000) e converte table→string antes de o hook do BR processar, evitando o crash. TRADE-OFF: metadados da table (ex.: .emote) são perdidos — o texto é preservado (.default, .text, .message, ou [1]). Para battle cries (o cenário de crash) não há emote, então a perda é nula. NOTA: a correção PRIMÁRIA está no próprio mod (github.com/HIKESS/Mods commit 7056584); este patch é DEFENSIVO para usuários do Steam Workshop que ainda não têm a correção. Defensive: no-op se o mod BR não estiver instalado ou se o bug já estiver corrigido. Default: Ativado."
+            or "Fixes the 'attempt to call method find (a nil value)' crash at scripts/gender.lua:149 in the Brazilian Translation mod (workshop-2785731953, v8.3.0). The bug triggers when Combat:BattleCry passes a TABLE (speech structure) to talker:Say — the mod's translation hook calls Genderer.SubGender(table) which tries table:find() and crashes (tables have no :find()). Repro: Wagstaff attacks a Bunnyman with a cane — the battle cry triggers the crash. The patch wraps talker:Say (deferred via DoTaskInTime(0) to run after the BR mod's hook, which has priority=-2000) and converts table→string before the BR hook processes it, preventing the crash. TRADE-OFF: table metadata (e.g. .emote) is lost — the text is preserved (.default, .text, .message, or [1]). For battle cries (the crash scenario) there is no emote, so the loss is nil. NOTE: the PRIMARY fix is in the mod itself (github.com/HIKESS/Mods commit 7056584); this patch is DEFENSIVE for Steam Workshop users who don't have the fix yet. Defensive: no-op if the BR mod is not installed or if the bug is already fixed. Default: Enabled.",
         options = {
             { description = _is_pt and "Ativado" or "Enabled",  data = true  },
             { description = _is_pt and "Desativado" or "Disabled", data = false },

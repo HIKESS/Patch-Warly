@@ -34,6 +34,12 @@
 --                                       craftáveis do AIP (workshop-1085586145)
 --                                       + comidas/veggies/chesspieces/etc.
 --                                       Gated em AIP language=portuguese.
+--    8) br_translation_subgender_fix.lua -> corrige crash do SubGender
+--                                       (gender.lua:149) do mod Tradução
+--                                       Brasileira (workshop-2785731953)
+--                                       quando BattleCry passa table speech
+--                                       para talker:Say. Defensive: no-op
+--                                       se o mod BR não existir.
 --
 --  NOTA SOBRE SANDBOX: no modmain do DST, funções como pcall/rawget/rawset
 --  NÃO são globais diretos do env do mod — precisam ser acessadas via GLOBAL
@@ -55,6 +61,7 @@ local _cfg = {
     translate_aip_storybook    = GetModConfigData("translate_aip_storybook") ~= false,
     translate_jx_descriptions  = GetModConfigData("translate_jx_descriptions") ~= false,
     translate_aip_descriptions = GetModConfigData("translate_aip_descriptions") ~= false,
+    fix_br_translation_subgender_crash = GetModConfigData("fix_br_translation_subgender_crash") ~= false,
     -- WHITELIST: quando true, o item NAO é bloqueado (mesmo com os block_* acima).
     -- Default false = segue o comportamento do block_* (bloqueia se o block estiver on).
     allow_jx_lantern          = GetModConfigData("allow_jx_lantern") == true,
@@ -68,7 +75,7 @@ local _cfg = {
 -- Exporta para os scripts de patch (modimport roda no mesmo env do mod)
 PATCH_CONFIG = _cfg
 
-print(string.format("[WarlyAdminPatch] config: remove_kitchen=%s freezer_priority=%s radius=%s block_revive=%s use_all_cookpots=%s block_jingxi=%s block_light=%s fix_gemcore=%s translate_aip_storybook=%s translate_jx_desc=%s translate_aip_desc=%s | whitelist: lantern=%s flashlight=%s lamp=%s mushroom_light=%s mushroom_light_2=%s lamp_2=%s",
+print(string.format("[WarlyAdminPatch] config: remove_kitchen=%s freezer_priority=%s radius=%s block_revive=%s use_all_cookpots=%s block_jingxi=%s block_light=%s fix_gemcore=%s translate_aip_storybook=%s translate_jx_desc=%s translate_aip_desc=%s fix_br_subgender=%s | whitelist: lantern=%s flashlight=%s lamp=%s mushroom_light=%s mushroom_light_2=%s lamp_2=%s",
     tostring(_cfg.remove_warly_kitchen),
     tostring(_cfg.freezer_priority_storage),
     tostring(_cfg.freezer_search_radius),
@@ -80,6 +87,7 @@ print(string.format("[WarlyAdminPatch] config: remove_kitchen=%s freezer_priorit
     tostring(_cfg.translate_aip_storybook),
     tostring(_cfg.translate_jx_descriptions),
     tostring(_cfg.translate_aip_descriptions),
+    tostring(_cfg.fix_br_translation_subgender_crash),
     tostring(_cfg.allow_jx_lantern),
     tostring(_cfg.allow_jx_flashlight),
     tostring(_cfg.allow_jx_lamp),
@@ -165,6 +173,26 @@ end
 if _cfg.translate_aip_descriptions then
     modimport("scripts/patch/aip_descriptions_ptbr_data.lua")
     modimport("scripts/patch/aip_descriptions_ptbr.lua")
+end
+
+-- ──────────────────────────────────────────────────────────────────────────
+--  Patch 8: Tradução Brasileira (workshop-2785731953) — crash fix do
+--           SubGender (gender.lua:149) quando BattleCry passa uma table
+--           speech para talker:Say.
+--  O mod BR (priority=-2000) carrega DEPOIS do Patch-Warly (priority=0).
+--  Seu hook de talker:Say (speech.lua:207) chama Genderer.SubGender
+--  incondicionalmente, e SubGender crasha em str:find() quando str é uma
+--  table ( Combat:BattleCry passa tables para talker:Say).
+--  O patch wrappeia talker:Say via AddClassPostConstruct + DoTaskInTime(0)
+--  (deferido para rodar DEPOIS do hook do mod BR) e converte table→string
+--  antes de o hook do BR processar, evitando o crash.
+--  NOTA: a correção PRIMÁRIA está no próprio mod (HIKESS/Mods commit
+--  7056584). Este patch é DEFENSIVO para usuários do Steam Workshop.
+--  Defensive: no-op se o mod BR não estiver instalado ou se o bug já
+--  estiver corrigido.
+-- ──────────────────────────────────────────────────────────────────────────
+if _cfg.fix_br_translation_subgender_crash then
+    modimport("scripts/patch/br_translation_subgender_fix.lua")
 end
 
 print("[WarlyAdminPatch] patches registrados.")

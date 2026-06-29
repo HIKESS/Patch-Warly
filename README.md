@@ -540,6 +540,135 @@ imediatamente no modmain, e (2) re-aplicamos no `AddPrefabPostInit("world")`
 
 ---
 
+### 8) `br_translation_subgender_fix.lua` — Tradução Brasileira: crash fix do SubGender
+
+#### Sintoma
+
+Crash ao entrar em combate (ex.: Wagstaff ataca um Bunnyman com bengala):
+
+```
+[string "../mods/workshop-2785731953/scripts/gender...."]:149:
+attempt to call method 'find' (a nil value)
+
+../mods/workshop-2785731953/scripts/gender.lua:149 in (field) SubGender
+   str = table: 000000008681B070
+   gender = 0
+../mods/workshop-2785731953/scripts/translators/speech.lua:207 in (method) Say
+   script = table: 000000008681B070
+   arg = nil
+scripts/components/combat.lua:554 in (method) BattleCry
+scripts/stategraphs/SGwilson.lua:10844 in (field) onenter
+```
+
+O CRSM diagnostica: `[High-Risk Mod] Tradução Brasileira`.
+
+#### Causa raiz
+
+O mod **Tradução Brasileira** (`workshop-2785731953`, v8.3.0) faz hook de
+`talker:Say` via `AddClassPostConstruct("components/talker", ...)` em
+`scripts/translators/speech.lua:204-211`:
+
+```lua
+AddClassPostConstruct("components/talker", function(self)
+    local oldTalkerSay = self.Say
+    function self:Say(script, ...)
+        script = Genderer.SubGender(script, 0)   -- linha 207
+        oldTalkerSay(self, script, ...)
+    end
+end)
+```
+
+`Genderer.SubGender` (`scripts/gender.lua:144-168`) só guardava contra `nil`:
+
+```lua
+function GENDERER.SubGender(str, gender)
+    if str == nil then return "" end
+    if not str:find("G|") then return str end   -- linha 149: CRASH se str é table
+    ...
+end
+```
+
+Quando `Combat:BattleCry` (`scripts/components/combat.lua:554`) passa uma
+**TABLE** (estrutura de speech, ex.: `{default="...", emote="..."}`) para
+`talker:Say`, o hook do mod BR encaminha a table para `SubGender`.
+`SubGender` chama `str:find("G|")` — mas **tables não têm método `:find()`**
+→ crash.
+
+Repro: qualquer personagem (especialmente mods como Wagstaff) cujo battle
+cry seja uma table em vez de string. O bug é **intermitente**: só crasha
+QUANDO o battle cry dispara (ao atacar um inimigo pela primeira vez contra
+aquele alvo).
+
+#### Correção primária (no próprio mod)
+
+A correção primária foi aplicada no repositório HIKESS/Mods,
+`2785731953/scripts/gender.lua` — adicionado
+`if type(str) ~= "string" then return str end` após o guard de nil.
+Commit `7056584` em `github.com/HIKESS/Mods`.
+
+Usuários que sincronizam a pasta `mods/` a partir do repo HIKESS/Mods já
+têm a correção e **não precisam deste patch**.
+
+#### Correção secundária (este patch, defensiva)
+
+Este patch é para usuários que rodam a versão do **Steam Workshop** (que
+ainda não tem a correção, até o autor publicar uma atualização).
+
+**Estratégia**: como não podemos acessar `Genderer.SubGender` diretamente
+(o mod BR guarda `GENDERER` no env do `modimport`, não em `_G` — a linha
+`GLOBAL.GENDERER = Genderer` em `gender.lua:418` está dentro do bloco
+`DEVMODE` que é pulado em produção), interceptamos no ponto de chamada:
+wrappeamos `talker:Say` para converter `table→string` **antes** de o hook
+do BR chamar `SubGender`.
+
+**Load order** (crítico):
+
+- Patch-Warly tem `priority=0` (default).
+- Mod BR tem `priority=-2000` (`modinfo.lua` linha 64).
+- Em DST, priority **MAIOR** carrega **ANTES**. Então Patch-Warly carrega
+  **antes** do mod BR.
+- `AddClassPostConstruct` callbacks rodam na ordem de registro (= ordem
+  de modmain = ordem de priority). Então o `PostConstruct` do Patch-Warly
+  roda **antes** do `PostConstruct` do mod BR.
+- Se wrappearmos `self.Say` imediatamente no nosso `PostConstruct`, o mod
+  BR wrappea o nosso wrapper. Em runtime, o wrapper do BR chama
+  `SubGender(script)` **antes** de chamar o nosso wrapper → a conversão
+  `table→string` aconteceria **depois** do crash. Inútil.
+- **Solução**: deferir nosso wrap para o próximo tick via
+  `inst:DoTaskInTime(0, ...)`. No próximo tick, **todos** os
+  `PostConstruct` (incluindo o do BR) já rodaram. `self.Say` é o wrapper
+  do BR. Nós wrappeamos **esse** wrapper — nosso outer wrapper converte
+  `table→string` antes de chamar o wrapper do BR, que então chama
+  `SubGender(string)` ✓ (sem crash).
+
+#### Trade-off
+
+A conversão `table→string` preserva o conteúdo textual (`.default`,
+`.text`, `.message`, ou `[1]`) mas **perde metadados** da table (ex.:
+`.emote` para animações de emote). Para battle cries (o cenário de
+crash), a table é tipicamente `{default="texto"}` ou
+`{"texto1","texto2"}` — sem emote — então a perda é **nula**. Para o
+raro caso de `talker:Say({default="texto", emote="wave"})`, o emote não
+toca mas o texto é exibido. Isso é aceitável: **better text-only than
+crash**.
+
+#### Defensivo
+
+- Se o mod BR **não estiver instalado**: a conversão `table→string` é
+  inofensiva. Vanilla `talker:Say` aceita tables, mas nossa conversão só
+  ativa para tables (strings passam direto). Como vanilla raramente
+  passa tables para `Say`, o impacto é mínimo.
+- Se o bug **já estiver corrigido** no mod BR (SubGender lida com
+  non-string): nossa conversão é redundante mas inofensiva (o BR recebe
+  uma string em vez de uma table — `SubGender(string)` é fine).
+- **Idempotente**: o `DoTaskInTime` wrap é instalado uma vez por
+  instância de talker (guard via `rawset` no componente).
+- Usa `_G.pcall`, `_G.rawget`, `_G.rawset` (convenção de sandbox v1.5.1
+  + strict.lua v1.6.1 — `rawset`/`rawget` para a guard de reinstall,
+  bypass do `strict.lua`).
+
+---
+
 Bloqueia as **fontes de luz** do mod workshop-3597024951 (JingXi Furniture /
 景熹家居). Os nomes de prefab abaixo foram obtidos por **análise direta do
 código-fonte** do mod em
@@ -707,6 +836,33 @@ ou mensagem indicando qual `require` falhou — o resto do patch ainda tenta rod
 ---
 
 ## Histórico de versões
+
+### `v1.7.0` — Patch 8 (Tradução Brasileira SubGender crash fix)
+
+- **Patch 8**: corrige o crash `attempt to call method 'find' (a nil value)`
+  em `scripts/gender.lua:149` do mod **Tradução Brasileira**
+  (`workshop-2785731953`, v8.3.0). O bug ocorre quando `Combat:BattleCry`
+  passa uma **table** (estrutura de speech) para `talker:Say` — o hook de
+  tradução do mod BR chama `Genderer.SubGender(table)` que tenta
+  `table:find()` e crasha (tables não têm `:find()`).
+  **Repro**: Wagstaff ataca Bunnyman com bengala — o battle cry dispara o
+  crash. O CRSM diagnostica `[High-Risk Mod] Tradução Brasileira`.
+- **Correção primária** aplicada no próprio mod (repositório HIKESS/Mods,
+  `2785731953/scripts/gender.lua`, commit `7056584`): adicionado
+  `if type(str) ~= "string" then return str end` ao `SubGender`.
+- **Correção secundária** (este patch, defensiva): para usuários do Steam
+  Workshop que ainda não têm a correção do mod, o patch wrappeia
+  `talker:Say` via `AddClassPostConstruct` + `DoTaskInTime(0)` (deferido
+  para rodar **depois** do hook do mod BR, que tem `priority=-2000`) e
+  converte `table→string` antes de o hook do BR processar.
+  - **Trade-off**: metadados da table (`.emote`) são perdidos, mas o texto
+    é preservado (`.default`, `.text`, `.message`, ou `[1]`). Para battle
+    cries não há emote, então a perda é nula.
+  - **Defensivo**: no-op se o mod BR não estiver instalado ou se o bug já
+    estiver corrigido. Idempotente (guard via `rawset` no componente).
+  - Usa `_G.pcall`, `_G.rawget`, `_G.rawset` (convenção de sandbox v1.5.1
+    + strict.lua v1.6.1).
+- Bump de versão 1.6.1 → 1.7.0.
 
 ### `v1.6.1` — hotfix de strict.lua (Patch 5)
 
