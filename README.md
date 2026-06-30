@@ -669,6 +669,92 @@ crash**.
 
 ---
 
+### 9) `boatpatch_boat_only.lua` — Item vanilla boatpatch: SÓ conserta barco
+
+#### Sintoma
+
+O item vanilla **boatpatch** (Remendo de Barco, prefabs `boatpatch` e
+`boatpatch_kelp` do DST base) serve para consertar barcos. MAS o item também
+aceita várias outras interações que causam **uso acidental**:
+
+- **Reparo de estruturas de madeira** (`repairer.repairmaterial = WOOD`) —
+  clicar o remendo numa parede/estrutura de madeira CONsome o item para
+  reparar a estrutura.
+- **Cura de entidades com health** (`repairer.healthrepairvalue`) — clicar
+  numa entidade com health CONsome o item para curá-la (“dar life”).
+- **Pegar fogo** (`MakeSmallBurnable` + `MakeSmallPropagator`) — o item
+  pega fogo se dropado perto de uma fogueira, e some em cinzas. Mods de
+  terceiros podem converter `burnable` → `fuel`.
+- **Combustível** (`fuel`) — alguns mods adicionam `fuel` a itens burnable,
+  permitindo que o remendo seja usado como combustível de fogueira
+  (“alimentar a fogueira”).
+
+**Problema**: o usuário tenta consertar o barco, mas clica sem querer numa
+fogueira, parede, ou outra coisa, e o remendo é consumido no alvo errado.
+*“assim eu nao uso ele por engano no fogo ou outra coisa.”*
+
+#### Causa raiz
+
+O prefab vanilla `boatpatch` (em `scripts/prefabs/boatpatch.lua` no DST)
+faz:
+
+```lua
+inst:AddComponent("repairer")
+inst.components.repairer.repairmaterial = MATERIALS.WOOD
+inst.components.repairer.boatrepairvalue = TUNING.REPAIR_BOATPATCH_HEALTH
+inst.components.repairer.boatrepairsound = "turnoftides/common/together/boat/repair_with_wood"
+...
+MakeSmallBurnable(inst)
+MakeSmallPropagator(inst)
+```
+
+Resultado: o item conserta barcos (uso pretendido) **MAS TAMBÉM** repara
+madeira (`repairmaterial=WOOD`), pega fogo (`burnable`), e pode virar
+combustível (mods de terceiros).
+
+#### Correção (este patch)
+
+Restringe o `boatpatch` (e `boatpatch_kelp`) a **APENAS consertar barcos**.
+Remove/neutaliza todas as outras interações:
+
+| Ação | Tratamento | Motivo |
+|------|------------|--------|
+| `burnable` | **REMOVE** | não pega fogo — “não alimentar a fogueira” |
+| `propagator` | **REMOVE** | não propaga fogo |
+| `fuel` | **REMOVE** (defensivo) | não vira combustível de fogueira |
+| `edible` | **REMOVE** (defensivo) | não pode ser comida — “não dar life [ao comer]” |
+| `bait` | **REMOVE** (defensivo) | não pode ser isca |
+| `repairer.repairmaterial` | **NEUTRALIZA** = `nil` | não repara estruturas de madeira |
+| `repairer.healthrepairvalue` | **NEUTRALIZA** = `0` | não cura entidades — “nem dar life” |
+| `repairer.boatrepairvalue` | **MANTÉM** | conserta a saúde do barco |
+| `repairer.boatrepairsound` | **MANTÉM** | som do reparo |
+| `inspectable`, `inventoryitem`, `stackable` | **MANTÉM** | inventário neutro |
+
+**Resultado**: ao clicar o remendo em **QUALQUER coisa que não seja um
+barco**, NADA acontece — o item **não é consumido**. Só conserta barcos.
+
+#### Variantes
+
+O DST tem dois prefabs de remendo:
+- `boatpatch` — Remendo de Barco (madeira)
+- `boatpatch_kelp` — Remendo de Barco de Alga (kelp)
+
+O patch aplica a **AMBOS** via `AddPrefabPostInit`.
+
+#### Defensivo
+
+- **Sempre aplica** (o `boatpatch` é vanilla, sempre existe no DST).
+- **Idempotente**: guard via `rawset` evita reprocessar se o patch for
+  carregado duas vezes.
+- Só modifica no **master sim** (componentes são server-side).
+- **Não remove** o `repairer` inteiro — apenas neutraliza os campos
+  não-barco, preservando `boatrepairvalue` + `boatrepairsound`.
+- Usa `_G.pcall`, `_G.rawget`, `_G.rawset` (convenção de sandbox v1.5.1
+  + strict.lua v1.6.1 — `rawset`/`rawget` para a guard de reinstall,
+  bypass do `strict.lua`).
+
+---
+
 Bloqueia as **fontes de luz** do mod workshop-3597024951 (JingXi Furniture /
 景熹家居). Os nomes de prefab abaixo foram obtidos por **análise direta do
 código-fonte** do mod em
@@ -761,6 +847,7 @@ idempotente.
 | `translate_aip_storybook` | `true` | Injeta a tradução PT-BR do livro "API storybook" do mod Additional Item Package (workshop-1085586145) via hook de `require()`. Apenas o conteúdo do livro é traduzido (18 capítulos). No-op se o mod AIP não estiver instalado ou se o idioma não for "Portuguese". |
 | `translate_jx_descriptions` | `true` | Sobrescreve `STRINGS.RECIPE_DESC` e `STRINGS.CHARACTERS.GENERIC.DESCRIBE` com PT-BR para TODOS os ~188 itens do JingXi Furniture (workshop-3597024951). NÃO traduz nomes (NAMES) — apenas descrições. Também fixa 2 bugs do arquivo EN (typo `CHESSPIECES_JX` plural, overwrite do `JX_RUG_TRIANGLE`). No-op se o JingXi não estiver instalado. |
 | `translate_aip_descriptions` | `true` | Sobrescreve `STRINGS.RECIPE_DESC` e `DESCRIBE` com PT-BR para TODOS os itens craftáveis do AIP (workshop-1085586145) + comidas/veggies/chesspieces/inscrições/etc. NÃO traduz nomes. NÃO traduz `aip_pet_*` (herdam do vanilla). Gated em AIP `language=portuguese`. No-op se o AIP não estiver instalado ou se o idioma não for "Portuguese". |
+| `restrict_boatpatch_boat_only` | `true` | Restringe o item vanilla `boatpatch` (Remendo de Barco, prefabs `boatpatch` + `boatpatch_kelp` do DST base) a **APENAS consertar barcos**. Remove: `burnable`, `propagator`, `fuel`, `edible`, `bait`. Neutraliza: `repairer.repairmaterial=nil`, `repairer.healthrepairvalue=0`. Mantém: `repairer.boatrepairvalue` + `boatrepairsound`. Resultado: clicar o remendo em qualquer coisa que NÃO seja um barco não faz nada — o item não é consumido. Só conserta barcos. Defensive: no-op se o prefab não existir. |
 
 ### Whitelist — NÃO bloquear itens específicos
 
@@ -836,6 +923,31 @@ ou mensagem indicando qual `require` falhou — o resto do patch ainda tenta rod
 ---
 
 ## Histórico de versões
+
+### `v1.8.0` — Patch 9 (boatpatch vanilla: SÓ conserta barco)
+
+- **Patch 9**: restringe o item vanilla `boatpatch` (Remendo de Barco,
+  prefabs `boatpatch` + `boatpatch_kelp` do DST base) a **APENAS consertar
+  barcos**, bloqueando todas as outras interações acidentais.
+  - **Problema**: o remendo serve para consertar barcos, MAS também repara
+    estruturas de madeira (`repairer.repairmaterial=WOOD` — clicar numa
+    parede de madeira consome o remendo), cura entidades com health
+    (`repairer.healthrepairvalue` — “dar life”), e pega fogo
+    (`MakeSmallBurnable` — pode virar combustível de fogueira). O usuário
+    clica sem querer numa fogueira/parede/outra coisa e o remendo é
+    consumido no alvo errado.
+  - **Correção**: REMOVE `burnable`, `propagator`, `fuel` (defensivo),
+    `edible` (defensivo), `bait` (defensivo); NEUTRALIZA
+    `repairer.repairmaterial=nil` + `repairer.healthrepairvalue=0`;
+    MANTÉM `repairer.boatrepairvalue` + `boatrepairsound`. Assim o remendo
+    SÓ conserta barcos — clicar em qualquer outra coisa não consome o item.
+  - Aplica aos dois prefabs vanilla (`boatpatch` + `boatpatch_kelp`) via
+    `AddPrefabPostInit`.
+  - **Defensivo**: no-op se o prefab não existir. Idempotente (guard via
+    `rawset` global). Só modifica no master sim. Usa `_G.pcall`,
+    `_G.rawget`, `_G.rawset` (convenção de sandbox v1.5.1 + strict.lua
+    v1.6.1).
+- Bump de versão 1.7.0 → 1.8.0.
 
 ### `v1.7.0` — Patch 8 (Tradução Brasileira SubGender crash fix)
 

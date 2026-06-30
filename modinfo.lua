@@ -17,7 +17,7 @@ local _is_pt = _locale == "pt" or _locale == "ptbr" or _locale == "brazilian"
 
 name = "Warly Kitchen + Admin Revive + Craft Block Patch"
 author = "HIKESS patch"
-version = "1.7.0"
+version = "1.8.0"
 
 api_version = 10
 dst_compatible = true
@@ -31,7 +31,7 @@ compatibility fix between [API] Gem Core (workshop-1378549454) and
 Craft Menu Tweak (workshop-2784074596), and a PT-BR translation for the
 "API storybook" book item from Additional Item Package (workshop-1085586145).
 
-Applies five patches that run together with the original mods (dependencies
+Applies nine patches that run together with the original mods (dependencies
 on the first two are kept; the rest are optional / defensive):
 
 1) NPC Friends - Warly
@@ -151,6 +151,31 @@ on the first two are kept; the rest are optional / defensive):
      commit 7056584); this patch is DEFENSIVE for Steam Workshop users who
      don't have the fix yet. Defensive: no-op if the BR mod is not installed
      or if the bug is already fixed.
+
+9) Vanilla boatpatch boat-only (restrict_boatpatch_boat_only)
+   * The DST vanilla item "boatpatch" (Boat Patch / Remendo de Barco,
+     prefabs `boatpatch` and `boatpatch_kelp`) is used to repair boats.
+     Besides repairing boats (the intended use), the item accepts several
+     other interactions: it can REPAIR wood structures
+     (repairer.repairmaterial=WOOD — clicking a wood wall consumes the
+     patch to repair it), HEAL entities with health
+     (repairer.healthrepairvalue), and BURN (MakeSmallBurnable —
+     catches fire near campfires, can be turned into fuel by third-party
+     mods).
+   * Problem: when trying to repair a boat, the user mis-clicks a campfire,
+     wood wall, or other target, and the item is consumed on the wrong
+     action. "assim eu nao uso ele por engano no fogo ou outra coisa."
+   * This patch restricts the boat patch (and its kelp variant) to ONLY
+     repair boats. It removes: burnable, propagator, fuel (if present),
+     edible (if present), bait (if present). It neutralizes:
+     repairer.repairmaterial (nil) and repairer.healthrepairvalue (0).
+     It KEEPS: repairer.boatrepairvalue (boat repair) and
+     repairer.boatrepairsound (repair sound).
+   * Result: clicking the item on anything that is NOT a boat does nothing
+     — the item is not consumed. Only repairs boats. No more accidental
+     misuse on fires or other targets.
+   * Defensive: no-op if the prefab does not exist (AddPrefabPostInit on
+     a non-existent prefab is a no-op). Default: Enabled.
 
 Load order for (1) and (2) is handled by the declared dependencies.
 ]]
@@ -332,6 +357,24 @@ configuration_options = {
         hover = _is_pt
             and "Corrige o crash 'attempt to call method find (a nil value)' em scripts/gender.lua:149 do mod Tradução Brasileira (workshop-2785731953, v8.3.0). O bug ocorre quando Combat:BattleCry passa uma TABLE (estrutura de speech) para talker:Say — o hook de tradução do mod BR chama Genderer.SubGender(table) que tenta table:find() e crasha (tables não têm :find()). Repro: Wagstaff ataca Bunnyman com bengala — o battle cry dispara o crash. O patch wrappeia talker:Say (deferido via DoTaskInTime(0) para rodar depois do hook do mod BR, que tem priority=-2000) e converte table→string antes de o hook do BR processar, evitando o crash. TRADE-OFF: metadados da table (ex.: .emote) são perdidos — o texto é preservado (.default, .text, .message, ou [1]). Para battle cries (o cenário de crash) não há emote, então a perda é nula. NOTA: a correção PRIMÁRIA está no próprio mod (github.com/HIKESS/Mods commit 7056584); este patch é DEFENSIVO para usuários do Steam Workshop que ainda não têm a correção. Defensive: no-op se o mod BR não estiver instalado ou se o bug já estiver corrigido. Default: Ativado."
             or "Fixes the 'attempt to call method find (a nil value)' crash at scripts/gender.lua:149 in the Brazilian Translation mod (workshop-2785731953, v8.3.0). The bug triggers when Combat:BattleCry passes a TABLE (speech structure) to talker:Say — the mod's translation hook calls Genderer.SubGender(table) which tries table:find() and crashes (tables have no :find()). Repro: Wagstaff attacks a Bunnyman with a cane — the battle cry triggers the crash. The patch wraps talker:Say (deferred via DoTaskInTime(0) to run after the BR mod's hook, which has priority=-2000) and converts table→string before the BR hook processes it, preventing the crash. TRADE-OFF: table metadata (e.g. .emote) is lost — the text is preserved (.default, .text, .message, or [1]). For battle cries (the crash scenario) there is no emote, so the loss is nil. NOTE: the PRIMARY fix is in the mod itself (github.com/HIKESS/Mods commit 7056584); this patch is DEFENSIVE for Steam Workshop users who don't have the fix yet. Defensive: no-op if the BR mod is not installed or if the bug is already fixed. Default: Enabled.",
+        options = {
+            { description = _is_pt and "Ativado" or "Enabled",  data = true  },
+            { description = _is_pt and "Desativado" or "Disabled", data = false },
+        },
+        default = true,
+    },
+    -- ──────────────────────────────────────────────────────────────────────
+    --  Patch 9: Item vanilla "boatpatch" (Remendo de Barco do DST base) —
+    --           restringe o remendo a APENAS consertar barcos.
+    --           Bloqueia reparar madeira, curar, pegar fogo, e
+    --           combustível. Defensive: no-op se o prefab não existir.
+    -- ──────────────────────────────────────────────────────────────────────
+    {
+        name = "restrict_boatpatch_boat_only",
+        label = _is_pt and "Remendo do barco SÓ conserta barco (vanilla)" or "Boat patch ONLY repairs boats (vanilla)",
+        hover = _is_pt
+            and "Restringe o item vanilla boatpatch (Remendo de Barco, prefabs `boatpatch` e `boatpatch_kelp` do DST base) a APENAS consertar barcos. O remendo serve para consertar barcos, MAS também aceita várias interações que causam uso acidental: pode REPARAR estruturas de madeira (repairer.repairmaterial=WOOD — clicar numa parede de madeira consome o remendo pra reparar a parede), CURAR entidades com health (repairer.healthrepairvalue), e PEGAR FOGO (MakeSmallBurnable — pega fogo perto de fogueira, e mods de terceiros podem converter em combustível). Problema: o usuário tenta consertar o barco, mas clica sem querer numa fogueira, parede, ou outra coisa, e o remendo é consumido no alvo errado. Este patch REMOVE: burnable (não pega fogo — 'não alimentar a fogueira'), propagator, fuel (defensivo — não vira combustível), edible (defensivo), bait (defensivo). NEUTRALIZA: repairer.repairmaterial=nil (não repara madeira), repairer.healthrepairvalue=0 (não cura — 'nem dar life'). MANTÉM: repairer.boatrepairvalue (conserta o barco) + repairer.boatrepairsound (som do reparo). Resultado: clicar o remendo em qualquer coisa que NÃO seja um barco não faz nada — o item não é consumido. Só conserta barcos. Aplica aos dois prefabs vanilla (boatpatch + boatpatch_kelp). Defensive: no-op se o prefab não existir. Default: Ativado."
+            or "Restricts the vanilla boatpatch item (Boat Patch / Remendo de Barco, prefabs `boatpatch` and `boatpatch_kelp` from base DST) to ONLY repair boats. The patch is meant to repair boats, BUT it also accepts several interactions that cause accidental use: it can REPAIR wood structures (repairer.repairmaterial=WOOD — clicking a wood wall consumes the patch to repair the wall), HEAL entities with health (repairer.healthrepairvalue), and BURN (MakeSmallBurnable — catches fire near campfires, and third-party mods can convert it to fuel). Problem: when trying to repair a boat, the user mis-clicks a campfire, wood wall, or other target, and the item is consumed on the wrong action. This patch REMOVES: burnable (cannot catch fire — 'do not feed the campfire'), propagator, fuel (defensive — cannot become fuel), edible (defensive), bait (defensive). NEUTRALIZES: repairer.repairmaterial=nil (no wood repair), repairer.healthrepairvalue=0 (no healing — 'no giving life'). KEEPS: repairer.boatrepairvalue (repairs the boat) + repairer.boatrepairsound (repair sound). Result: clicking the item on anything that is NOT a boat does nothing — the item is not consumed. Only repairs boats. Applies to both vanilla prefabs (boatpatch + boatpatch_kelp). Defensive: no-op if the prefab does not exist. Default: Enabled.",
         options = {
             { description = _is_pt and "Ativado" or "Enabled",  data = true  },
             { description = _is_pt and "Desativado" or "Disabled", data = false },

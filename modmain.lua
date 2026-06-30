@@ -40,6 +40,19 @@
 --                                       quando BattleCry passa table speech
 --                                       para talker:Say. Defensive: no-op
 --                                       se o mod BR não existir.
+--    9) boatpatch_boat_only.lua       -> restringe o item vanilla
+--                                       "boatpatch" (Remendo de Barco,
+--                                       prefabs `boatpatch` +
+--                                       `boatpatch_kelp` do DST base) a
+--                                       APENAS consertar barcos. Remove
+--                                       burnable, propagator, fuel,
+--                                       edible, bait; neutraliza
+--                                       repairer.repairmaterial +
+--                                       healthrepairvalue. Mantém
+--                                       boatrepairvalue +
+--                                       boatrepairsound.
+--                                       Defensive: no-op se o prefab
+--                                       não existir.
 --
 --  NOTA SOBRE SANDBOX: no modmain do DST, funções como pcall/rawget/rawset
 --  NÃO são globais diretos do env do mod — precisam ser acessadas via GLOBAL
@@ -62,6 +75,7 @@ local _cfg = {
     translate_jx_descriptions  = GetModConfigData("translate_jx_descriptions") ~= false,
     translate_aip_descriptions = GetModConfigData("translate_aip_descriptions") ~= false,
     fix_br_translation_subgender_crash = GetModConfigData("fix_br_translation_subgender_crash") ~= false,
+    restrict_boatpatch_boat_only = GetModConfigData("restrict_boatpatch_boat_only") ~= false,
     -- WHITELIST: quando true, o item NAO é bloqueado (mesmo com os block_* acima).
     -- Default false = segue o comportamento do block_* (bloqueia se o block estiver on).
     allow_jx_lantern          = GetModConfigData("allow_jx_lantern") == true,
@@ -75,7 +89,7 @@ local _cfg = {
 -- Exporta para os scripts de patch (modimport roda no mesmo env do mod)
 PATCH_CONFIG = _cfg
 
-print(string.format("[WarlyAdminPatch] config: remove_kitchen=%s freezer_priority=%s radius=%s block_revive=%s use_all_cookpots=%s block_jingxi=%s block_light=%s fix_gemcore=%s translate_aip_storybook=%s translate_jx_desc=%s translate_aip_desc=%s fix_br_subgender=%s | whitelist: lantern=%s flashlight=%s lamp=%s mushroom_light=%s mushroom_light_2=%s lamp_2=%s",
+print(string.format("[WarlyAdminPatch] config: remove_kitchen=%s freezer_priority=%s radius=%s block_revive=%s use_all_cookpots=%s block_jingxi=%s block_light=%s fix_gemcore=%s translate_aip_storybook=%s translate_jx_desc=%s translate_aip_desc=%s fix_br_subgender=%s restrict_boatpatch=%s | whitelist: lantern=%s flashlight=%s lamp=%s mushroom_light=%s mushroom_light_2=%s lamp_2=%s",
     tostring(_cfg.remove_warly_kitchen),
     tostring(_cfg.freezer_priority_storage),
     tostring(_cfg.freezer_search_radius),
@@ -88,6 +102,7 @@ print(string.format("[WarlyAdminPatch] config: remove_kitchen=%s freezer_priorit
     tostring(_cfg.translate_jx_descriptions),
     tostring(_cfg.translate_aip_descriptions),
     tostring(_cfg.fix_br_translation_subgender_crash),
+    tostring(_cfg.restrict_boatpatch_boat_only),
     tostring(_cfg.allow_jx_lantern),
     tostring(_cfg.allow_jx_flashlight),
     tostring(_cfg.allow_jx_lamp),
@@ -193,6 +208,29 @@ end
 -- ──────────────────────────────────────────────────────────────────────────
 if _cfg.fix_br_translation_subgender_crash then
     modimport("scripts/patch/br_translation_subgender_fix.lua")
+end
+
+-- ──────────────────────────────────────────────────────────────────────────
+--  Patch 9: Item vanilla "boatpatch" (Remendo de Barco do DST base) —
+--           restringe o remendo a APENAS consertar barcos.
+--  O item vanilla boatpatch (prefabs `boatpatch` + `boatpatch_kelp`)
+--  serve para consertar barcos, MAS também aceita várias interações que
+--  causam uso acidental: reparar madeira (repairer.repairmaterial=WOOD
+--  — clicar numa parede de madeira consome o remendo), curar entidades
+--  (repairer.healthrepairvalue), e pegar fogo (MakeSmallBurnable —
+--  mods de terceiros podem converter em combustível). O usuário clica
+--  sem querer numa fogueira/parede/outra coisa e o remendo é consumido
+--  no alvo errado.
+--  O patch REMOVE burnable, propagator, fuel, edible, bait; NEUTRALIZA
+--  repairer.repairmaterial + healthrepairvalue; MANTÉM
+--  repairer.boatrepairvalue + boatrepairsound. Assim o remendo SÓ
+--  conserta barcos — clicar em qualquer outra coisa não consome o item.
+--  Aplica aos dois prefabs vanilla (boatpatch + boatpatch_kelp).
+--  Defensive: no-op se o prefab não existir (AddPrefabPostInit em
+--  prefab inexistente é no-op).
+-- ──────────────────────────────────────────────────────────────────────────
+if _cfg.restrict_boatpatch_boat_only then
+    modimport("scripts/patch/boatpatch_boat_only.lua")
 end
 
 print("[WarlyAdminPatch] patches registrados.")
